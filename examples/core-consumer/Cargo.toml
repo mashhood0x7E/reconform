@@ -1,0 +1,8 @@
+[package]
+name = "core-consumer"
+version = "0.0.0"
+edition = "2024"
+publish = false
+[workspace]
+[dependencies]
+reconform-core = { path = "../../crates/reconform-core" }

@@ -1,0 +1,1 @@
+{"verdict":"fail","first_divergence":"output","findings":[{"id":"output","checkpoint":"done","channel":"stdout","occurrence":0,"required":true,"verdict":"fail","code":"COMPARE_DIFFERENT","location":{"kind":"byte","index":1}}]}

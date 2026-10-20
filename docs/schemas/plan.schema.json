@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Reconform comparison plan 1.0",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "scenario", "strict_environment", "checks"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "scenario": {"$ref": "#/$defs/id"},
+    "strict_environment": {"type": "boolean"},
+    "checks": {"type": "array", "minItems": 1, "maxItems": 1024,
+      "contains": {"type":"object","required":["required"],"properties":{"required":{"const":true}}},
+      "items": {
+        "type":"object", "additionalProperties":false,
+        "required":["id","checkpoint","channel","occurrence","required","policy"],
+        "properties": {
+          "id":{"$ref":"#/$defs/id"}, "checkpoint":{"$ref":"#/$defs/id"}, "channel":{"$ref":"#/$defs/id"},
+          "occurrence":{"type":"integer","minimum":0,"maximum":4294967295},
+          "required":{"type":"boolean"},
+          "policy":{"oneOf":[
+            {"type":"object","additionalProperties":false,"required":["kind"],"properties":{"kind":{"const":"exact"}}},
+            {"type":"object","additionalProperties":false,"required":["kind","tolerance"],"properties":{"kind":{"const":"absolute"},"tolerance":{"type":"number","minimum":0,"maximum":1.7976931348623157e308}}}
+          ]}
+        }
+      }
+    }
+  },
+  "$defs":{"id":{"type":"string","pattern":"^[a-zA-Z0-9._-]{1,128}$"}}
+}

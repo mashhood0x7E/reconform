@@ -1,0 +1,1 @@
+{"verdict":"inconclusive","first_divergence":null,"findings":[{"id":"output","checkpoint":"done","channel":"stdout","occurrence":0,"required":true,"verdict":"inconclusive","code":"OBSERVATION_MISSING","location":null}]}

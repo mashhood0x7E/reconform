@@ -1,0 +1,1 @@
+{"schema_version":"1.0","scenario":"greeting","strict_environment":false,"checks":[{"id":"greeting-output","checkpoint":"done","channel":"stdout","occurrence":0,"required":true,"policy":{"kind":"exact"}}]}

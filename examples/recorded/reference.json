@@ -1,0 +1,1 @@
+{"schema_version":"1.0","scenario":"greeting","subject":"reference","provenance":"examples/recorded/reference.rs","environment":"fixture-v1","checkpoints":["done"],"observations":[{"checkpoint":"done","channel":"stdout","occurrence":0,"completeness":"complete","payload":{"kind":"text","value":"hello\n"}}]}

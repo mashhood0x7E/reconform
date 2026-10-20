@@ -1,0 +1,1 @@
+{"verdict":"pass","first_divergence":null,"findings":[{"id":"output","checkpoint":"done","channel":"stdout","occurrence":0,"required":true,"verdict":"pass","code":"COMPARE_EQUAL","location":null}]}
