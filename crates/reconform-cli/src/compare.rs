@@ -77,20 +77,20 @@ fn compare(
         return (Verdict::Inconclusive, "KIND_MISMATCH", None);
     }
     let (verdict, location) = match (&a.payload, &b.payload, &check.policy) {
-        (Payload::Text(a), Payload::Text(b), Policy::Exact) => (
+        (Payload::Text(a), Payload::Text(b), Policy::Exact {}) => (
             compare_bytes(a.as_bytes(), b.as_bytes()),
             first_difference(a.as_bytes(), b.as_bytes()).map(Location::Byte),
         ),
-        (Payload::Bytes(a), Payload::Bytes(b), Policy::Exact) => (
+        (Payload::Bytes(a), Payload::Bytes(b), Policy::Exact {}) => (
             compare_bytes(a, b),
             first_difference(a, b).map(Location::Byte),
         ),
-        (Payload::Exit(a), Payload::Exit(b), Policy::Exact) => {
+        (Payload::Exit(a), Payload::Exit(b), Policy::Exact {}) => {
             (if a == b { Verdict::Pass } else { Verdict::Fail }, None)
         }
         (Payload::Scalar(a), Payload::Scalar(b), policy) => {
             let tolerance = match policy {
-                Policy::Exact => 0.0,
+                Policy::Exact {} => 0.0,
                 Policy::Absolute { tolerance } => *tolerance,
             };
             (
@@ -98,7 +98,7 @@ fn compare(
                 None,
             )
         }
-        (Payload::Events(a), Payload::Events(b), Policy::Exact) => {
+        (Payload::Events(a), Payload::Events(b), Policy::Exact {}) => {
             let index = a
                 .iter()
                 .zip(b)

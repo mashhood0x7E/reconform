@@ -123,3 +123,34 @@ observations/check IDs, finite f64 values and checkpoint references. Schema vali
 alone does not establish semantic validity. Golden tests freeze the report's verdict,
 first-divergence and finding projection; separate tests check complete report
 repeatability and input digests.
+
+## Candidate-only contracts
+
+A contract checks one bundle without needing a reference:
+
+```powershell
+reconform check examples/recorded/candidate.json --plan examples/recorded/contracts.json --format json
+reconform validate examples/recorded/contracts.json --kind contracts
+```
+
+Contract plans have `schema_version`, `scenario`, and `checks`. Each check has the
+same ID, checkpoint, channel, occurrence and required fields as a comparison, but
+uses `expression` instead of `policy`. There is no strict-environment setting because
+no cross-environment pairing is performed.
+
+| Expression | Supported evidence | Result |
+| --- | --- | --- |
+| `{"kind":"exists"}` | Any complete observation | Pass if present; Fail if missing |
+| `{"kind":"non_empty"}` | Text, bytes, events | Pass if at least one byte/event |
+| `{"kind":"between","min":0,"max":10}` | Finite scalar | Inclusive bounds; invalid/reversed ranges rejected |
+| `{"kind":"exit_success"}` | Exit code | Pass only for zero |
+
+Incomplete evidence is always inconclusive, including Exists. Missing evidence for
+other expressions is inconclusive. Unsupported value/expression combinations remain
+unsupported. Exists describes the recording, not whether an external file or object
+exists in the actual application. At least one check must be required.
+
+Contract reports use `method: "recorded-contracts/1"`, one subject, and two input
+identities (bundle, plan). `first_divergence` identifies the first violated contract;
+locations are null. Sorting, limits, gate precedence, output and rerun behavior match
+offline comparison. Caller-declared metadata remains unverified.

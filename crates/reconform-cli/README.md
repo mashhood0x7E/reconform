@@ -14,3 +14,7 @@ Input schema, examples and exit codes are documented in the repository's
 [recorded-format guide](https://github.com/mashhood0x7E/reconform/blob/main/docs/recorded-format.md).
 Libraries remain independent of the CLI's serde/serde_json/BLAKE3 dependencies.
 Licensed under MIT OR Apache-2.0.
+
+Candidate-only contracts are available with `reconform check candidate.json --plan
+contracts.json`. Supported expressions are Exists, NonEmpty, Between and ExitSuccess.
+Incomplete captures cannot satisfy these contracts.

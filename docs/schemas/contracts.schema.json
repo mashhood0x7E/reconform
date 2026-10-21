@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Reconform contract plan 1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "scenario",
+    "checks"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "scenario": {
+      "$ref": "#/$defs/id"
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1024,
+      "contains": {
+        "type": "object",
+        "required": [
+          "required"
+        ],
+        "properties": {
+          "required": {
+            "const": true
+          }
+        }
+      },
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "checkpoint",
+          "channel",
+          "occurrence",
+          "required",
+          "expression"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "checkpoint": {
+            "$ref": "#/$defs/id"
+          },
+          "channel": {
+            "$ref": "#/$defs/id"
+          },
+          "occurrence": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "expression": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind"
+                ],
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "exists",
+                      "non_empty",
+                      "exit_success"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "min",
+                  "max"
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "between"
+                  },
+                  "min": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157E+308,
+                    "maximum": 1.7976931348623157E+308
+                  },
+                  "max": {
+                    "type": "number",
+                    "minimum": -1.7976931348623157E+308,
+                    "maximum": 1.7976931348623157E+308
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9._-]{1,128}$"
+    }
+  }
+}

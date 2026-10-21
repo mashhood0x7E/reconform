@@ -83,7 +83,7 @@ pub struct CheckSpec {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Policy {
-    Exact,
+    Exact {},
     Absolute { tolerance: f64 },
 }
 

@@ -17,3 +17,14 @@ NaN, infinity and invalid tolerances return a typed error.
 
 Experimental API; no stable release or tested minimum Rust version yet.
 Licensed under MIT OR Apache-2.0.
+
+Candidate-only checks use the same gate semantics:
+
+```rust
+use reconform_core::{Contract, Evidence, ObservationView, Verdict, evaluate_contract};
+let evidence = Evidence::Complete(ObservationView::Exit(0));
+assert_eq!(evaluate_contract(Contract::ExitSuccess, evidence), Verdict::Pass);
+```
+
+`Evidence` distinguishes complete, missing and incomplete capture. Exists checks
+recorded presence; NonEmpty, Between and ExitSuccess apply to matching value kinds.

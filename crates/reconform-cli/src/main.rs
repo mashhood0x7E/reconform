@@ -1,7 +1,9 @@
 mod compare;
+mod contracts;
 mod model;
 
 use compare::Finding;
+use contracts::ContractPlan;
 use model::{Bundle, MAX_BYTES, Plan, VERSION};
 use reconform_core::Verdict;
 use serde::{Serialize, de::DeserializeOwned};
@@ -12,7 +14,7 @@ use std::{
     process::ExitCode,
 };
 
-const HELP: &str = "Reconform: compare recorded observations (experimental)\n\n  reconform compare LEFT RIGHT --plan PLAN [--format human|json] [--output FILE]\n  reconform validate FILE --kind bundle|plan [--format human|json]\n  reconform version\n\nInputs: schema 1.0 UTF-8 JSON, at most 8 MiB each. No target is executed.\nOutput files must not already exist. Exit: 0 pass, 1 mismatch, 2 invalid input,\n3 I/O error, 4 inconclusive/unsupported. See docs/recorded-format.md.\n";
+const HELP: &str = "Reconform: compare recorded observations (experimental)\n\n  reconform compare LEFT RIGHT --plan PLAN [--format human|json] [--output FILE]\n  reconform check BUNDLE --plan CONTRACTS [--format human|json] [--output FILE]\n  reconform validate FILE --kind bundle|plan|contracts [--format human|json]\n  reconform version\n\nInputs: schema 1.0 UTF-8 JSON, at most 8 MiB each. No target is executed.\nOutput files must not already exist. Exit: 0 pass, 1 mismatch, 2 invalid input,\n3 I/O error, 4 inconclusive/unsupported. See docs/recorded-format.md.\n";
 
 #[derive(Debug)]
 struct Error {
@@ -49,19 +51,19 @@ struct Subject<'a> {
     environment: &'a Option<String>,
 }
 #[derive(Serialize)]
-struct Report<'a> {
+struct Report<'a, P> {
     schema_version: &'static str,
     tool_version: &'static str,
     scenario: &'a str,
     verdict: &'static str,
     method: &'static str,
     policy_digest: String,
-    plan: &'a Plan,
+    plan: &'a P,
     inputs: Vec<InputIdentity>,
-    subjects: [Subject<'a>; 2],
+    subjects: Vec<Subject<'a>>,
     findings: Vec<Finding>,
     first_divergence: Option<String>,
-    unselected_observations: [usize; 2],
+    unselected_observations: Vec<usize>,
     limitations: Vec<&'static str>,
     reproduce: Vec<String>,
 }
@@ -224,7 +226,9 @@ fn execute(args: &[String]) -> Result<u8, Error> {
     match command.as_str() {
         "validate" => {
             if opts.positional.len() != 1 || opts.plan.is_some() || opts.output.is_some() {
-                return Err(Error::config("validate requires FILE --kind bundle|plan"));
+                return Err(Error::config(
+                    "validate requires FILE --kind bundle|plan|contracts",
+                ));
             }
             match opts.kind.as_deref() {
                 Some("bundle") => read::<Bundle>(&opts.positional[0])?
@@ -235,7 +239,15 @@ fn execute(args: &[String]) -> Result<u8, Error> {
                     .0
                     .validate()
                     .map_err(Error::config)?,
-                _ => return Err(Error::config("validate requires --kind bundle|plan")),
+                Some("contracts") => read::<ContractPlan>(&opts.positional[0])?
+                    .0
+                    .validate()
+                    .map_err(Error::config)?,
+                _ => {
+                    return Err(Error::config(
+                        "validate requires --kind bundle|plan|contracts",
+                    ));
+                }
             }
             emit(
                 &serde_json::json!({"schema_version": VERSION, "valid": true}),
@@ -319,7 +331,7 @@ fn execute(args: &[String]) -> Result<u8, Error> {
                 policy_digest: digest(&canonical_policy),
                 plan: &plan,
                 inputs: vec![left_id, right_id, plan_id],
-                subjects: [
+                subjects: vec![
                     Subject {
                         id: &left.subject,
                         provenance: &left.provenance,
@@ -333,7 +345,7 @@ fn execute(args: &[String]) -> Result<u8, Error> {
                 ],
                 findings,
                 first_divergence,
-                unselected_observations,
+                unselected_observations: unselected_observations.to_vec(),
                 limitations,
                 reproduce,
             };
@@ -347,6 +359,85 @@ fn execute(args: &[String]) -> Result<u8, Error> {
             human.push_str(
                 "Use --format json for input digests, policies and the rerun argument array.\n",
             );
+            emit(&report, &human, &opts)?;
+            Ok(match verdict {
+                Verdict::Pass => 0,
+                Verdict::Fail => 1,
+                Verdict::Error => 3,
+                _ => 4,
+            })
+        }
+        "check" => {
+            if opts.positional.len() != 1 || opts.kind.is_some() {
+                return Err(Error::config("check requires BUNDLE --plan CONTRACTS"));
+            }
+            let path = opts
+                .plan
+                .as_deref()
+                .ok_or_else(|| Error::config("check requires --plan CONTRACTS"))?;
+            let (plan, plan_id) = read::<ContractPlan>(path)?;
+            let (bundle, bundle_id) = read::<Bundle>(&opts.positional[0])?;
+            plan.validate().map_err(Error::config)?;
+            bundle.validate().map_err(Error::config)?;
+            if plan.scenario != bundle.scenario
+                || plan
+                    .checks
+                    .iter()
+                    .any(|c| !bundle.checkpoints.contains(&c.checkpoint))
+            {
+                return Err(Error::config(
+                    "contract scenario or checkpoint does not match bundle",
+                ));
+            }
+            let (verdict, findings) = contracts::evaluate(&bundle, &plan);
+            let first_divergence = findings
+                .iter()
+                .find(|f| f.verdict == "fail")
+                .map(|f| f.id.clone());
+            let reproduce = vec![
+                "reconform".into(),
+                "check".into(),
+                bundle_id.path.clone(),
+                "--plan".into(),
+                plan_id.path.clone(),
+                "--format".into(),
+                "json".into(),
+            ];
+            let policy = serde_json::to_vec(&plan)
+                .map_err(|_| Error::config("policy serialization failed"))?;
+            let unselected = bundle
+                .observations
+                .iter()
+                .filter(|o| !plan.selects(&o.checkpoint, &o.channel, o.occurrence))
+                .count();
+            let report = Report {
+                schema_version: VERSION,
+                tool_version: env!("CARGO_PKG_VERSION"),
+                scenario: &plan.scenario,
+                verdict: verdict.as_str(),
+                method: "recorded-contracts/1",
+                policy_digest: digest(&policy),
+                plan: &plan,
+                inputs: vec![bundle_id, plan_id],
+                subjects: vec![Subject {
+                    id: &bundle.subject,
+                    provenance: &bundle.provenance,
+                    environment: &bundle.environment,
+                }],
+                findings,
+                first_divergence,
+                unselected_observations: vec![unselected],
+                limitations: vec![
+                    "Contracts inspect caller-supplied recorded observations, not live application state.",
+                    "Exists asserts the presence of a complete observation in this recording.",
+                    "Retain original input files and verify their digests before rerunning.",
+                ],
+                reproduce,
+            };
+            let mut human = format!("{}: {}\n", plan.scenario, verdict.as_str());
+            for f in &report.findings {
+                human.push_str(&format!("  {}: {} ({})\n", f.id, f.verdict, f.code));
+            }
             emit(&report, &human, &opts)?;
             Ok(match verdict {
                 Verdict::Pass => 0,

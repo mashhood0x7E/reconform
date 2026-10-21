@@ -8,6 +8,9 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+mod contract;
+pub use contract::{Contract, Evidence, ObservationView, evaluate_contract};
+
 /// Result of a verification check, distinct from an application's exit code.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Verdict {

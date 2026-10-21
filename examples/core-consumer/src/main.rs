@@ -9,6 +9,14 @@ fn compare_ascii_case_insensitive(a: &str, b: &str) -> Verdict {
     }
 }
 fn main() {
+    use reconform_core::{Contract, Evidence, ObservationView, evaluate_contract};
+    assert_eq!(
+        evaluate_contract(
+            Contract::ExitSuccess,
+            Evidence::Complete(ObservationView::Exit(0))
+        ),
+        Verdict::Pass
+    );
     assert_eq!(compare_bytes(b"a", b"b"), Verdict::Fail);
     let verdict = compare_ascii_case_insensitive("HELLO", "hello");
     assert_eq!(

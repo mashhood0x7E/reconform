@@ -385,3 +385,138 @@ fn ordering_optional_findings_and_policy_identity() {
         original["policy_digest"]
     );
 }
+
+fn contracts() -> Value {
+    json!({"schema_version":"1.0","scenario":"sample","checks":[{"id":"output","checkpoint":"done","channel":"stdout","occurrence":0,"required":true,"expression":{"kind":"non_empty"}}]})
+}
+fn check(f: &Fixture) -> Output {
+    f.command()
+        .args([
+            "check",
+            "right.json",
+            "--plan",
+            "contracts.json",
+            "--format",
+            "json",
+        ])
+        .output()
+        .unwrap()
+}
+#[test]
+fn candidate_only_contracts_preserve_unknowns() {
+    let f = Fixture::new();
+    f.put("contracts.json", &contracts());
+    parsed(&check(&f), 0);
+    let mut b = bundle();
+    b["observations"][0]["payload"]["value"] = json!("");
+    f.put("right.json", &b);
+    parsed(&check(&f), 1);
+    b["observations"][0]["completeness"] = json!("partial");
+    f.put("right.json", &b);
+    parsed(&check(&f), 4);
+    b["observations"] = json!([]);
+    f.put("right.json", &b);
+    parsed(&check(&f), 4);
+    let mut p = contracts();
+    p["checks"][0]["expression"] = json!({"kind":"exists"});
+    f.put("contracts.json", &p);
+    assert_eq!(
+        parsed(&check(&f), 1)["findings"][0]["code"],
+        "CONTRACT_VIOLATED"
+    );
+    f.put("right.json", &bundle());
+    parsed(&check(&f), 0);
+}
+#[test]
+fn contract_bounds_exit_and_reproduction() {
+    let f = Fixture::new();
+    let mut p = contracts();
+    p["checks"][0]["expression"] = json!({"kind":"between","min":2.0,"max":3.0});
+    f.put("contracts.json", &p);
+    let mut b = bundle();
+    b["observations"][0]["payload"] = json!({"kind":"scalar","value":3.0});
+    f.put("right.json", &b);
+    parsed(&check(&f), 0);
+    b["observations"][0]["payload"]["value"] = json!(4.0);
+    f.put("right.json", &b);
+    let result = check(&f);
+    let report = parsed(&result, 1);
+    let argv: Vec<_> = report["reproduce"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .skip(1)
+        .map(|v| v.as_str().unwrap())
+        .collect();
+    assert_eq!(
+        result.stdout,
+        Command::new(env!("CARGO_BIN_EXE_reconform"))
+            .args(argv)
+            .output()
+            .unwrap()
+            .stdout
+    );
+    p["checks"][0]["expression"] = json!({"kind":"between","min":4.0,"max":3.0});
+    f.put("contracts.json", &p);
+    parsed(&check(&f), 2);
+    p["checks"][0]["expression"] = json!({"kind":"exit_success"});
+    f.put("contracts.json", &p);
+    parsed(&check(&f), 4);
+    b["observations"][0]["payload"] = json!({"kind":"exit","value":0});
+    f.put("right.json", &b);
+    parsed(&check(&f), 0);
+    b["observations"][0]["payload"]["value"] = json!(1);
+    f.put("right.json", &b);
+    parsed(&check(&f), 1);
+}
+#[test]
+fn contract_validation_rejects_empty_gates_duplicates_and_unknown_fields() {
+    let f = Fixture::new();
+    f.put("contracts.json", &contracts());
+    parsed(
+        &f.command()
+            .args([
+                "validate",
+                "contracts.json",
+                "--kind",
+                "contracts",
+                "--format",
+                "json",
+            ])
+            .output()
+            .unwrap(),
+        0,
+    );
+    let mut p = contracts();
+    p["checks"] = json!([]);
+    f.put("contracts.json", &p);
+    parsed(&check(&f), 2);
+    let mut p = contracts();
+    p["checks"][0]["required"] = json!(false);
+    f.put("contracts.json", &p);
+    parsed(&check(&f), 2);
+    let mut p = contracts();
+    let duplicate = p["checks"][0].clone();
+    p["checks"].as_array_mut().unwrap().push(duplicate);
+    f.put("contracts.json", &p);
+    parsed(&check(&f), 2);
+    let mut p = contracts();
+    p["checks"][0]["expression"]["ignored"] = json!(true);
+    f.put("contracts.json", &p);
+    parsed(&check(&f), 2);
+}
+
+#[test]
+fn parameterless_policies_reject_unknown_fields() {
+    let f = Fixture::new();
+    let mut p = plan();
+    p["checks"][0]["policy"]["tolerence"] = json!(99);
+    f.put("plan.json", &p);
+    parsed(&f.compare(), 2);
+    for kind in ["exists", "non_empty", "exit_success"] {
+        let mut p = contracts();
+        p["checks"][0]["expression"] = json!({"kind":kind,"ignored":true});
+        f.put("contracts.json", &p);
+        parsed(&check(&f), 2);
+    }
+}

@@ -1,0 +1,1 @@
+{"schema_version":"1.0","scenario":"greeting","checks":[{"id":"greeting-present","checkpoint":"done","channel":"stdout","occurrence":0,"required":true,"expression":{"kind":"non_empty"}}]}

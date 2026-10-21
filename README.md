@@ -7,7 +7,7 @@ repeat the comparison. Neither application needs to depend on Reconform.
 This is an unreleased, experimental implementation. The CLI supports offline
 text, bytes, finite numbers, ordered string events, and exit-code comparisons.
 `renderparity` separately compares borrowed RGBA8 frames. Process execution,
-PNG decoding, contract-only scenarios, and baseline management are not available.
+PNG decoding and baseline management are not available. Candidate-only recorded contracts check presence, nonempty values, scalar bounds and successful exit.
 
 ## Try it
 
