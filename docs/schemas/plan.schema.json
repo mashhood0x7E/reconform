@@ -18,7 +18,7 @@
           "required":{"type":"boolean"},
           "policy":{"oneOf":[
             {"type":"object","additionalProperties":false,"required":["kind"],"properties":{"kind":{"const":"exact"}}},
-            {"type":"object","additionalProperties":false,"required":["kind","tolerance"],"properties":{"kind":{"const":"absolute"},"tolerance":{"type":"number","minimum":0,"maximum":1.7976931348623157e308}}}
+            {"type":"object","additionalProperties":false,"required":["kind","tolerance"],"properties":{"kind":{"const":"absolute"},"tolerance":{"type":"number","minimum":0}}}
           ]}
         }
       }

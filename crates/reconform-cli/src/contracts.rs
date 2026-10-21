@@ -13,6 +13,7 @@ use std::collections::BTreeSet;
 pub struct ContractPlan {
     pub schema_version: String,
     pub scenario: String,
+    #[serde(deserialize_with = "crate::model::items")]
     pub checks: Vec<ContractCheck>,
 }
 

@@ -4,7 +4,7 @@ The CLI reads UTF-8 JSON only. Inputs are limited to 8 MiB per file, 1024 checkp
 1024 observations and 1024 checks. JSON recursion is bounded by serde_json's default
 parser limit. Unknown fields, unknown payload/policy tags, duplicate struct fields,
 unsupported schema versions, duplicate observation keys and invalid IDs are errors.
-Semantic validation runs after parsing the bounded file. No file named by a payload
+Collection counts are limited during deserialization; semantic validation then checks the bounded values. No file named by a payload
 is opened, and no command is executed.
 
 ## Bundle
@@ -161,3 +161,9 @@ Unix open flags; this adds no dependency to either comparison library. Report fi
 are created with mode 0600 on Unix. Windows files inherit the chosen directory's ACL.
 The caller must control the input/output directories; this is not an adversarial
 shared-directory sandbox or a snapshot of files concurrently modified by another user.
+
+Report/error structure is described in `docs/schemas/report.schema.json`. The
+embedded plan is validated separately with the comparison or contract schema;
+`./scripts/check-schemas.ps1` checks emitted reports and representative inputs using
+PowerShell's independent JSON Schema validator. Numeric f64 range limits remain CLI
+semantic validation to avoid imposing enormous decimal literals on schema tooling.

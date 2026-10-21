@@ -43,3 +43,7 @@ The CLI additionally uses libc on Unix for O_NONBLOCK/O_NOCTTY, avoiding blockin
 opens on special files. libc was already present in the cross-platform lockfile.
 Core and RenderParity remain dependency-free. The supported minimum toolchain is
 1.90, verified by the Windows/Linux GitHub Actions matrix.
+
+A separate CSV ledger pilot exercised 18 comparisons, 9 contract runs and 18 identical
+reruns. Results and limitations are in [pilot.md](pilot.md). Its test project remains
+outside this repository.

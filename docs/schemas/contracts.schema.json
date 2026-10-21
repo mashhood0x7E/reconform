@@ -90,14 +90,10 @@
                     "const": "between"
                   },
                   "min": {
-                    "type": "number",
-                    "minimum": -1.7976931348623157E+308,
-                    "maximum": 1.7976931348623157E+308
+                    "type": "number"
                   },
                   "max": {
-                    "type": "number",
-                    "minimum": -1.7976931348623157E+308,
-                    "maximum": 1.7976931348623157E+308
+                    "type": "number"
                   }
                 }
               }

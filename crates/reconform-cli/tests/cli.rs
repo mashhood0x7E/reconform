@@ -590,3 +590,30 @@ fn fifo_inputs_are_rejected_and_reports_are_private() {
         0o600
     );
 }
+
+#[test]
+fn collection_limits_and_truncated_utf8_are_rejected() {
+    let f = Fixture::new();
+    let mut b = bundle();
+    b["observations"][0]["payload"] = json!({"kind":"events","value":vec!["x";10001]});
+    f.put("right.json", &b);
+    parsed(&f.compare(), 2);
+    let mut b = bundle();
+    b["observations"] = json!(vec![b["observations"][0].clone(); 1025]);
+    f.put("right.json", &b);
+    parsed(&f.compare(), 2);
+    f.put("right.json", &bundle());
+    let mut p = plan();
+    p["checks"] = json!(vec![p["checks"][0].clone(); 1025]);
+    f.put("plan.json", &p);
+    parsed(&f.compare(), 2);
+    f.put("plan.json", &plan());
+    for bytes in [
+        vec![0xff],
+        vec![0xef, 0xbb],
+        b"{\"schema_version\":\"1.0\"".to_vec(),
+    ] {
+        fs::write(f.0.join("right.json"), bytes).unwrap();
+        parsed(&f.compare(), 2);
+    }
+}

@@ -24,7 +24,7 @@
         "payload": {"oneOf": [
           {"type":"object","additionalProperties":false,"required":["kind","value"],"properties":{"kind":{"const":"text"},"value":{"type":"string"}}},
           {"type":"object","additionalProperties":false,"required":["kind","value"],"properties":{"kind":{"const":"bytes"},"value":{"type":"array","items":{"type":"integer","minimum":0,"maximum":255}}}},
-          {"type":"object","additionalProperties":false,"required":["kind","value"],"properties":{"kind":{"const":"scalar"},"value":{"type":"number","minimum":-1.7976931348623157e308,"maximum":1.7976931348623157e308}}},
+          {"type":"object","additionalProperties":false,"required":["kind","value"],"properties":{"kind":{"const":"scalar"},"value":{"type":"number"}}},
           {"type":"object","additionalProperties":false,"required":["kind","value"],"properties":{"kind":{"const":"events"},"value":{"type":"array","maxItems":10000,"items":{"type":"string"}}}},
           {"type":"object","additionalProperties":false,"required":["kind","value"],"properties":{"kind":{"const":"exit"},"value":{"type":"integer","minimum":-2147483648,"maximum":2147483647}}}
         ]}

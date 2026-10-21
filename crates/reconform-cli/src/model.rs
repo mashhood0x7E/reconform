@@ -5,6 +5,50 @@ pub const VERSION: &str = "1.0";
 pub const MAX_BYTES: u64 = 8 * 1024 * 1024;
 pub const MAX_ITEMS: usize = 1024;
 
+// Enforce collection limits while deserializing, rather than first allocating an
+// arbitrarily large Vec and rejecting it during semantic validation.
+fn limited<'de, D, T, const N: usize>(deserializer: D) -> Result<Vec<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    struct Visitor<T, const N: usize>(std::marker::PhantomData<T>);
+    impl<'de, T: Deserialize<'de>, const N: usize> serde::de::Visitor<'de> for Visitor<T, N> {
+        type Value = Vec<T>;
+        fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "an array with at most {N} elements")
+        }
+        fn visit_seq<A: serde::de::SeqAccess<'de>>(
+            self,
+            mut seq: A,
+        ) -> Result<Self::Value, A::Error> {
+            let mut values = Vec::new();
+            while values.len() < N {
+                match seq.next_element()? {
+                    Some(value) => values.push(value),
+                    None => return Ok(values),
+                }
+            }
+            if seq.next_element::<serde::de::IgnoredAny>()?.is_some() {
+                return Err(serde::de::Error::custom("array limit exceeded"));
+            }
+            Ok(values)
+        }
+    }
+    deserializer.deserialize_seq(Visitor::<T, N>(std::marker::PhantomData))
+}
+
+pub fn items<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    limited::<D, T, MAX_ITEMS>(deserializer)
+}
+fn events<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Vec<String>, D::Error> {
+    limited::<D, String, 10000>(deserializer)
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Bundle {
@@ -13,7 +57,9 @@ pub struct Bundle {
     pub subject: String,
     pub provenance: String,
     pub environment: Option<String>,
+    #[serde(deserialize_with = "items")]
     pub checkpoints: Vec<String>,
+    #[serde(deserialize_with = "items")]
     pub observations: Vec<Observation>,
 }
 
@@ -47,7 +93,7 @@ pub enum Payload {
     Text(String),
     Bytes(Vec<u8>),
     Scalar(f64),
-    Events(Vec<String>),
+    Events(#[serde(deserialize_with = "events")] Vec<String>),
     Exit(i32),
 }
 impl Payload {
@@ -68,6 +114,7 @@ pub struct Plan {
     pub schema_version: String,
     pub scenario: String,
     pub strict_environment: bool,
+    #[serde(deserialize_with = "items")]
     pub checks: Vec<CheckSpec>,
 }
 #[derive(Debug, Deserialize, Serialize)]
