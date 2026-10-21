@@ -6,8 +6,8 @@
 The accompanying Rust programs emit those recordings without any Reconform dependency:
 
 ```powershell
-rustc examples/recorded/reference.rs -o target/reference.exe
-rustc examples/recorded/candidate.rs -o target/candidate.exe
+rustc crates/reconform-cli/examples/recorded/reference.rs -o target/reference.exe
+rustc crates/reconform-cli/examples/recorded/candidate.rs -o target/candidate.exe
 ```
 
 Their stdout is a recording bundle, not the raw application output. This example

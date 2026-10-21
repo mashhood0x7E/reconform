@@ -22,5 +22,5 @@ bounding rectangle. Empty regions are rejected. Metrics describe byte difference
 not perceptual similarity. The comparison loop uses constant working space.
 
 PNG codecs, arbitrary masks, clustering and temporal alignment are not implemented.
-Experimental API; no stable release or tested minimum Rust version yet.
+Experimental API. Minimum supported Rust: 1.90, tested on Windows and Linux.
 Licensed under MIT OR Apache-2.0.

@@ -15,7 +15,7 @@ An empty gate returns Error; optional checks cannot establish a passing gate.
 Comparisons borrow input slices. Numeric tolerance is absolute and inclusive;
 NaN, infinity and invalid tolerances return a typed error.
 
-Experimental API; no stable release or tested minimum Rust version yet.
+Experimental API. Minimum supported Rust: 1.90, tested on Windows and Linux.
 Licensed under MIT OR Apache-2.0.
 
 Candidate-only checks use the same gate semantics:

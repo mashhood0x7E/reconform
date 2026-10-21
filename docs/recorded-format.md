@@ -129,8 +129,8 @@ repeatability and input digests.
 A contract checks one bundle without needing a reference:
 
 ```powershell
-reconform check examples/recorded/candidate.json --plan examples/recorded/contracts.json --format json
-reconform validate examples/recorded/contracts.json --kind contracts
+reconform check crates/reconform-cli/examples/recorded/candidate.json --plan crates/reconform-cli/examples/recorded/contracts.json --format json
+reconform validate crates/reconform-cli/examples/recorded/contracts.json --kind contracts
 ```
 
 Contract plans have `schema_version`, `scenario`, and `checks`. Each check has the
@@ -154,3 +154,10 @@ Contract reports use `method: "recorded-contracts/1"`, one subject, and two inpu
 identities (bundle, plan). `first_divergence` identifies the first violated contract;
 locations are null. Sorting, limits, gate precedence, output and rerun behavior match
 offline comparison. Caller-declared metadata remains unverified.
+
+On Unix, input files are opened nonblocking and checked to be regular files before
+reading, so a FIFO cannot wait for an external writer. The CLI uses libc only for
+Unix open flags; this adds no dependency to either comparison library. Report files
+are created with mode 0600 on Unix. Windows files inherit the chosen directory's ACL.
+The caller must control the input/output directories; this is not an adversarial
+shared-directory sandbox or a snapshot of files concurrently modified by another user.

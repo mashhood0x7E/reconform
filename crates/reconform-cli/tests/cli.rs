@@ -295,7 +295,7 @@ fn validate_and_usage_errors() {
 #[test]
 fn independent_program_recordings_compare_end_to_end() {
     let f = Fixture::new();
-    let examples = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/recorded");
+    let examples = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/recorded");
     for (name, output) in [("reference", "left.json"), ("candidate", "right.json")] {
         let exe = f.0.join(format!("{name}{}", std::env::consts::EXE_SUFFIX));
         let compiled = Command::new("rustc")
@@ -519,4 +519,74 @@ fn parameterless_policies_reject_unknown_fields() {
         f.put("contracts.json", &p);
         parsed(&check(&f), 2);
     }
+}
+
+#[test]
+fn directory_inputs_fail_without_reading() {
+    let f = Fixture::new();
+    parsed(
+        &f.command()
+            .args(["validate", ".", "--kind", "bundle", "--format", "json"])
+            .output()
+            .unwrap(),
+        2,
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn fifo_inputs_are_rejected_and_reports_are_private() {
+    use std::os::unix::fs::PermissionsExt;
+    let f = Fixture::new();
+    assert!(
+        Command::new("mkfifo")
+            .arg(f.0.join("pipe"))
+            .status()
+            .unwrap()
+            .success()
+    );
+    let mut child = f
+        .command()
+        .args(["validate", "pipe", "--kind", "bundle", "--format", "json"])
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+    loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            assert_eq!(status.code(), Some(2));
+            break;
+        }
+        if std::time::Instant::now() > deadline {
+            child.kill().unwrap();
+            child.wait().unwrap();
+            panic!("FIFO input blocked");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    parsed(
+        &f.command()
+            .args([
+                "compare",
+                "left.json",
+                "right.json",
+                "--plan",
+                "plan.json",
+                "--format",
+                "json",
+                "--output",
+                "report.json",
+            ])
+            .output()
+            .unwrap(),
+        0,
+    );
+    assert_eq!(
+        fs::metadata(f.0.join("report.json"))
+            .unwrap()
+            .permissions()
+            .mode()
+            & 0o777,
+        0o600
+    );
 }

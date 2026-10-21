@@ -11,10 +11,10 @@ PNG decoding and baseline management are not available. Candidate-only recorded 
 
 ## Try it
 
-Requires Rust/Cargo (tested with Rust 1.90 on Windows MSVC).
+Requires Rust/Cargo 1.90 or newer.
 
 ```powershell
-cargo run -p reconform-cli -- compare examples/recorded/reference.json examples/recorded/candidate.json --plan examples/recorded/plan.json --format json
+cargo run -p reconform-cli -- compare crates/reconform-cli/examples/recorded/reference.json crates/reconform-cli/examples/recorded/candidate.json --plan crates/reconform-cli/examples/recorded/plan.json --format json
 ```
 
 The example intentionally differs at byte 0 and exits with status **1**. Compare
@@ -30,7 +30,7 @@ input digests, the applied policy, provenance, and a rerun argument array.
 existing file. Missing or partial observations never satisfy a required check.
 
 See [recorded format and exit codes](docs/recorded-format.md) for preparing inputs.
-The [example](examples/recorded/README.md) includes two standalone Rust programs.
+The [example](crates/reconform-cli/examples/recorded/README.md) includes two standalone Rust programs.
 
 ## Libraries
 
@@ -53,7 +53,6 @@ cargo test --workspace
 cargo doc --workspace --no-deps
 ```
 
-Windows is locally tested; Linux checks are configured in CI but are not yet
-verified. See [development notes](CONTRIBUTING.md) and [measurements](docs/measurements.md).
+Windows and Linux checks pass in CI on Rust 1.90. See [development notes](CONTRIBUTING.md) and [measurements](docs/measurements.md).
 
 Licensed under either [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.

@@ -74,7 +74,18 @@ fn digest(bytes: &[u8]) -> String {
 
 fn read<T: DeserializeOwned>(path: &str) -> Result<(T, InputIdentity), Error> {
     let absolute = fs::canonicalize(path).map_err(Error::io)?;
-    let file = File::open(&absolute).map_err(Error::io)?;
+    if !fs::metadata(&absolute).map_err(Error::io)?.is_file() {
+        return Err(Error::config("input must be a regular file"));
+    }
+    let mut open = OpenOptions::new();
+    open.read(true);
+    // A FIFO swapped in after metadata must not hang before the descriptor check.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        open.custom_flags(libc::O_NONBLOCK | libc::O_NOCTTY);
+    }
+    let file = open.open(&absolute).map_err(Error::io)?;
     if !file.metadata().map_err(Error::io)?.is_file() {
         return Err(Error::config("input must be a regular file"));
     }
@@ -168,7 +179,14 @@ fn write_new(path: &Path, bytes: &[u8]) -> Result<(), Error> {
     let mut temporary: Option<(PathBuf, File)> = None;
     for counter in 0..100 {
         let p = parent.join(format!(".reconform-{}-{counter}.tmp", std::process::id()));
-        match OpenOptions::new().write(true).create_new(true).open(&p) {
+        let mut open = OpenOptions::new();
+        open.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            open.mode(0o600);
+        }
+        match open.open(&p) {
             Ok(file) => {
                 temporary = Some((p, file));
                 break;

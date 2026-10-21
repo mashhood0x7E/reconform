@@ -99,6 +99,7 @@ name = "reconform-cli"
 version = "0.1.0"
 dependencies = [
  "blake3",
+ "libc",
  "reconform-core",
  "serde",
  "serde_json",

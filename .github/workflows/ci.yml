@@ -1,7 +1,10 @@
 name: CI
 on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
   test:
+    timeout-minutes: 15
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest]
@@ -22,3 +25,4 @@ jobs:
       - run: cargo run --manifest-path examples/frame-consumer/Cargo.toml --release --locked
       - run: cargo tree --manifest-path examples/core-consumer/Cargo.toml -e normal,build --locked
       - run: cargo tree --manifest-path examples/frame-consumer/Cargo.toml -e normal,build --locked
+      - run: cargo package --workspace --locked

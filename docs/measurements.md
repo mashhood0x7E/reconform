@@ -31,3 +31,15 @@ Reproduce dependency checks with `cargo tree --manifest-path
 examples/core-consumer/Cargo.toml -e normal,build` and the corresponding frame consumer.
 CLI release build size, event benchmarks, allocations, Linux/macOS results and a
 full supply-chain audit have not yet been measured.
+
+Release review on 21 October 2026: all 20 registry package versions in Cargo.lock
+were queried through OSV's public batch API; no advisory matches were returned.
+This is a point-in-time database check, not a source audit or proof of safety.
+Their declared license expressions offer MIT, Apache-2.0, or equivalent permissive
+options; unicode-ident additionally requires Unicode-3.0 notices. Distribution must
+preserve applicable third-party notices. No automatic package publication occurred.
+
+The CLI additionally uses libc on Unix for O_NONBLOCK/O_NOCTTY, avoiding blocking
+opens on special files. libc was already present in the cross-platform lockfile.
+Core and RenderParity remain dependency-free. The supported minimum toolchain is
+1.90, verified by the Windows/Linux GitHub Actions matrix.
