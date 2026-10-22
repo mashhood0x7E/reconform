@@ -4,7 +4,7 @@ Compare recorded observations from a reference and candidate implementation.
 Reconform reports which checks differ, which could not be verified, and how to
 repeat the comparison. Neither application needs to depend on Reconform.
 
-This is the unreleased 0.1.0 release candidate. The CLI supports offline
+Version 0.1.0 is available on crates.io. The CLI supports offline
 text, bytes, JSON, finite numbers, ordered string events, and exit-code comparisons.
 `renderparity` separately compares borrowed RGBA8 frames. The CLI also provides
 [bounded executable capture](docs/process-capture.md) and opt-in
@@ -25,12 +25,12 @@ cargo run -p reconform-cli -- compare crates/reconform-cli/examples/recorded/ref
 ```
 
 The example intentionally differs at byte 0 and exits with status **1**. Compare
-`reference.json` with itself to see a passing report. To install the local CLI:
+`reference.json` with itself to see a passing report. Install the CLI from crates.io:
 
 ```powershell
-cargo install --path crates/reconform-cli --locked
+cargo install reconform-cli --version 0.1.0 --locked
 # Include PNG decoding:
-cargo install --path crates/reconform-cli --features png --locked
+cargo install reconform-cli --version 0.1.0 --features png --locked
 ```
 
 The JSON report includes each check's result, the first comparable mismatch,

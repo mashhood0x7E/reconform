@@ -1,9 +1,9 @@
 # Compatibility and release scope
 
-The unreleased 0.1.0 implementation supports recorded-evidence comparison,
+Version 0.1.0 supports recorded-evidence comparison,
 candidate-only contracts, bounded native executable capture and PNG comparisons,
 alongside standalone in-memory RGBA8 comparison. The implementation passed the
-Windows/Linux release checks; publication awaits the owner's approval.
+Windows/Linux release checks and was published to crates.io on 2026-10-22.
 
 ## Rust APIs
 
@@ -51,4 +51,5 @@ The expanded implementation and synchronized cancellation test passed the comple
 at `9153fd1`. This includes default and all-feature tests, Clippy, independent
 consumers and package verification. The all-features `cargo publish --workspace
 --dry-run --locked` also passed locally. The installed release CLI verified an
-executable scenario with JSON state and captured PNG output. No upload was made.
+executable scenario with JSON state and captured PNG output. Following owner approval,
+all three packages were published at 0.1.0 and verified through the crates.io API.

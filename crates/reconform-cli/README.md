@@ -9,7 +9,7 @@ reconform validate reference.json --kind bundle
 reconform validate plan.json --kind plan
 ```
 
-This package is unreleased. `capture` executes explicitly authorized native targets;
+Install with `cargo install reconform-cli --locked`. `capture` executes explicitly authorized native targets;
 `plan` validates a capture manifest without execution. Add `--features png` when
 installing to enable `compare-png` and PNG policies on captured byte observations.
 See the [capture guide](https://github.com/mashhood0x7E/reconform/blob/main/docs/process-capture.md)

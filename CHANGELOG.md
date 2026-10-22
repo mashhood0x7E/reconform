@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 — unreleased
+## 0.1.0 — 2026-10-22
 
 - Run reference/candidate or contract scenarios with preflight and retained capture bundles.
 - Compare structured JSON and explicitly normalized text; reject duplicate JSON keys and preserve large integers.
@@ -17,4 +17,4 @@
 - Reject incomplete evidence, invalid schemas and empty required gates.
 - Compare borrowed RGBA8 frames with explicit alpha metadata, tolerances and rectangular regions.
 
-Windows/Linux release checks passed; publication awaits owner approval.
+Published reconform-core, renderparity and reconform-cli to crates.io after Windows/Linux release checks.
