@@ -67,3 +67,9 @@ The external ledger pilot was rerun through native capture: 27 captures,
 All matched the earlier independent capture harness results. Process integration
 tests additionally exercise literal arguments, deadlines, output flooding,
 nonzero exit, fresh-file checks, traversal rejection and descendant termination.
+
+A later registry query identified the local processor as Intel Core i5-8300H
+2.30 GHz. Repeating the independent 1080p release consumer on 22 October gave
+p50 16.412 ms and p95 24.756 ms over 50 samples. Both independent consumer graphs
+still contain zero third-party normal/build dependencies. This remains a local
+smoke measurement, with no claim of controlled system load or measured peak RSS.

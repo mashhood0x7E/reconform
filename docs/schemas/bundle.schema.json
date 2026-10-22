@@ -1,33 +1,200 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Reconform recorded bundle 1.0",
-  "type": "object", "additionalProperties": false,
-  "required": ["schema_version", "scenario", "subject", "provenance", "checkpoints", "observations"],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "scenario",
+    "subject",
+    "provenance",
+    "checkpoints",
+    "observations"
+  ],
   "properties": {
-    "schema_version": {"const": "1.0"},
-    "scenario": {"$ref": "#/$defs/id"},
-    "subject": {"$ref": "#/$defs/id"},
-    "provenance": {"type": "string", "minLength": 1, "maxLength": 4096},
-    "environment": {"type": ["string", "null"], "minLength": 1, "maxLength": 4096},
-    "checkpoints": {"type": "array", "minItems": 1, "maxItems": 1024, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
-    "observations": {"type": "array", "maxItems": 1024, "items": {"$ref": "#/$defs/observation"}}
+    "schema_version": {
+      "const": "1.0"
+    },
+    "scenario": {
+      "$ref": "#/$defs/id"
+    },
+    "subject": {
+      "$ref": "#/$defs/id"
+    },
+    "provenance": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "environment": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "checkpoints": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1024,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/id"
+      }
+    },
+    "observations": {
+      "type": "array",
+      "maxItems": 1024,
+      "items": {
+        "$ref": "#/$defs/observation"
+      }
+    }
   },
   "$defs": {
-    "id": {"type": "string", "pattern": "^[a-zA-Z0-9._-]{1,128}$"},
+    "id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9._-]{1,128}$"
+    },
     "observation": {
-      "type": "object", "additionalProperties": false,
-      "required": ["checkpoint", "channel", "occurrence", "completeness", "payload"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checkpoint",
+        "channel",
+        "occurrence",
+        "completeness",
+        "payload"
+      ],
       "properties": {
-        "checkpoint": {"$ref": "#/$defs/id"}, "channel": {"$ref": "#/$defs/id"},
-        "occurrence": {"type": "integer", "minimum": 0, "maximum": 4294967295},
-        "completeness": {"enum": ["complete", "partial", "unknown", "unavailable"]},
-        "payload": {"oneOf": [
-          {"type":"object","additionalProperties":false,"required":["kind","value"],"properties":{"kind":{"const":"text"},"value":{"type":"string"}}},
-          {"type":"object","additionalProperties":false,"required":["kind","value"],"properties":{"kind":{"const":"bytes"},"value":{"type":"array","items":{"type":"integer","minimum":0,"maximum":255}}}},
-          {"type":"object","additionalProperties":false,"required":["kind","value"],"properties":{"kind":{"const":"scalar"},"value":{"type":"number"}}},
-          {"type":"object","additionalProperties":false,"required":["kind","value"],"properties":{"kind":{"const":"events"},"value":{"type":"array","maxItems":10000,"items":{"type":"string"}}}},
-          {"type":"object","additionalProperties":false,"required":["kind","value"],"properties":{"kind":{"const":"exit"},"value":{"type":"integer","minimum":-2147483648,"maximum":2147483647}}}
-        ]}
+        "checkpoint": {
+          "$ref": "#/$defs/id"
+        },
+        "channel": {
+          "$ref": "#/$defs/id"
+        },
+        "occurrence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "completeness": {
+          "enum": [
+            "complete",
+            "partial",
+            "unknown",
+            "unavailable"
+          ]
+        },
+        "payload": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "value"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "text"
+                },
+                "value": {
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "value"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "bytes"
+                },
+                "value": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 255
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "value"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "scalar"
+                },
+                "value": {
+                  "type": "number"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "value"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "events"
+                },
+                "value": {
+                  "type": "array",
+                  "maxItems": 10000,
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "value"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "exit"
+                },
+                "value": {
+                  "type": "integer",
+                  "minimum": -2147483648,
+                  "maximum": 2147483647
+                }
+              }
+            },
+            {
+              "required": [
+                "kind",
+                "value"
+              ],
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "json"
+                },
+                "value": {}
+              }
+            }
+          ]
+        }
       }
     }
   }

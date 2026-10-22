@@ -69,6 +69,159 @@ fn parsed(output: &Output, exit: i32) -> Value {
     );
     serde_json::from_slice(&output.stdout).unwrap()
 }
+
+#[test]
+fn json_text_policies_and_structured_contracts() {
+    let f = Fixture::new();
+    let mut a = bundle();
+    let mut b = bundle();
+    let mut p = plan();
+    a["observations"][0]["payload"] =
+        json!({"kind":"json","value":{"total":10,"state":{"ready":true}}});
+    b["observations"][0]["payload"] =
+        json!({"kind":"json","value":{"state":{"ready":true},"total":10}});
+    f.put("left.json", &a);
+    f.put("right.json", &b);
+    parse_success(&f.compare());
+    p["checks"][0]["policy"] = json!({"kind":"json","pointer":"/total","tolerance":1.0});
+    b["observations"][0]["payload"]["value"]["total"] = json!(11);
+    f.put("plan.json", &p);
+    f.put("right.json", &b);
+    parsed(&f.compare(), 0);
+    b["observations"][0]["payload"]["value"]["total"] = json!(12);
+    f.put("right.json", &b);
+    parsed(&f.compare(), 1);
+    p["checks"][0]["policy"]["pointer"] = json!("/missing");
+    f.put("plan.json", &p);
+    assert_eq!(
+        parsed(&f.compare(), 4)["findings"][0]["code"],
+        "JSON_PATH_MISSING"
+    );
+    p["checks"][0]["policy"]["pointer"] = json!("/bad~2");
+    f.put("plan.json", &p);
+    parsed(&f.compare(), 2);
+    p["checks"][0]["policy"] =
+        json!({"kind":"text","normalize_newlines":true,"trim_trailing_whitespace":true});
+    a["observations"][0]["payload"] = json!({"kind":"text","value":"hello \r\n"});
+    b["observations"][0]["payload"] = json!({"kind":"text","value":"hello\n"});
+    f.put("left.json", &a);
+    f.put("right.json", &b);
+    f.put("plan.json", &p);
+    parsed(&f.compare(), 0);
+    let mut c = json!({"schema_version":"1.0","scenario":"sample","checks":[{"id":"contract","checkpoint":"done","channel":"stdout","occurrence":0,"required":true,"expression":{"kind":"equals","value":{"kind":"text","value":"hello\n"}}}]});
+    let run = || {
+        f.command()
+            .args([
+                "check",
+                "right.json",
+                "--plan",
+                "contracts.json",
+                "--format",
+                "json",
+            ])
+            .output()
+            .unwrap()
+    };
+    f.put("contracts.json", &c);
+    parsed(&run(), 0);
+    b["observations"][0]["payload"] =
+        json!({"kind":"events","value":["load","noise","save","load"]});
+    f.put("right.json", &b);
+    c["checks"][0]["expression"] = json!({"kind":"event_order","events":["load","save"]});
+    f.put("contracts.json", &c);
+    parsed(&run(), 0);
+    c["checks"][0]["expression"] = json!({"kind":"event_order","events":["save","save"]});
+    f.put("contracts.json", &c);
+    parsed(&run(), 1);
+    c["checks"][0]["expression"] = json!({"kind":"event_contains","event":"noise"});
+    f.put("contracts.json", &c);
+    parsed(&run(), 0);
+    b["observations"][0]["payload"] = json!({"kind":"json","value":{"ready":null}});
+    f.put("right.json", &b);
+    c["checks"][0]["expression"] = json!({"kind":"json_exists","pointer":"/ready"});
+    f.put("contracts.json", &c);
+    parsed(&run(), 0);
+    c["checks"][0]["expression"]["pointer"] = json!("/missing");
+    f.put("contracts.json", &c);
+    parsed(&run(), 1);
+}
+
+fn parse_success(output: &Output) {
+    parsed(output, 0);
+}
+
+#[test]
+fn saved_reports_junit_init_and_json_integrity() {
+    let f = Fixture::new();
+    let init = parsed(
+        &f.command()
+            .args(["init", "example", "--format", "json"])
+            .output()
+            .unwrap(),
+        0,
+    );
+    let args: Vec<_> = init["compare"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .skip(1)
+        .map(|v| v.as_str().unwrap())
+        .collect();
+    parsed(&f.command().args(args).output().unwrap(), 1);
+    assert!(
+        parsed(
+            &f.command()
+                .args(["doctor", "--format", "json"])
+                .output()
+                .unwrap(),
+            0
+        )["capture_available"]
+            .as_bool()
+            .unwrap()
+    );
+    let mut b = bundle();
+    b["observations"][0]["payload"]["value"] = json!("different");
+    f.put("right.json", &b);
+    let report = parsed(&f.compare(), 1);
+    f.put("report.json", &report);
+    let junit = f
+        .command()
+        .args(["report", "report.json", "--format", "junit"])
+        .output()
+        .unwrap();
+    assert_eq!(junit.status.code(), Some(1));
+    let xml = String::from_utf8(junit.stdout).unwrap();
+    assert!(xml.contains("failures=\"1\""));
+    assert!(xml.contains("<failure "));
+    let mut wrong = report;
+    wrong["verdict"] = json!("pass");
+    f.put("report.json", &wrong);
+    parsed(
+        &f.command()
+            .args(["report", "report.json", "--format", "json"])
+            .output()
+            .unwrap(),
+        2,
+    );
+    let mut p = plan();
+    p["checks"][0]["policy"] = json!({"kind":"json","pointer":"","tolerance":0});
+    f.put("plan.json", &p);
+    b["observations"][0]["payload"] = json!({"kind":"text","value":"{\"n\":1,\"n\":2}"});
+    f.put("left.json", &b);
+    f.put("right.json", &b);
+    parsed(&f.compare(), 3);
+    b["observations"][0]["payload"]["value"] = json!("{\"n\":18446744073709551616}");
+    f.put("left.json", &b);
+    b["observations"][0]["payload"]["value"] = json!("{\"n\":18446744073709551617}");
+    f.put("right.json", &b);
+    parsed(&f.compare(), 1);
+    p["checks"][0]["policy"] = json!({"kind":"json","pointer":"/n","tolerance":1});
+    f.put("plan.json", &p);
+    assert_eq!(
+        parsed(&f.compare(), 4)["findings"][0]["code"],
+        "JSON_NUMBER_PRECISION"
+    );
+}
 #[test]
 fn pass_fail_rerun_and_deterministic_reports() {
     let f = Fixture::new();

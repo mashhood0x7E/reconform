@@ -2,6 +2,11 @@
 
 ## 0.1.0 — unreleased
 
+- Run reference/candidate or contract scenarios with preflight and retained capture bundles.
+- Compare structured JSON and explicitly normalized text; reject duplicate JSON keys and preserve large integers.
+- Check typed equality, JSON fields and ordered event contracts.
+- Render saved reports and JUnit summaries; initialize a runnable example and inspect CLI capabilities.
+
 - Capture native executables with explicit roots, environment, stdin, deadlines, output budgets and descendant cleanup.
 - Capture fresh files into recorded bundles and compare PNG observations using an opt-in codec.
 - Report pixel metrics, regions, tolerances and dimension incompatibility for PNG files.

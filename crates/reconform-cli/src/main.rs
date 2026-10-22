@@ -2,8 +2,11 @@ mod capture;
 mod compare;
 mod contracts;
 mod model;
+mod reporting;
+mod scenario;
 #[cfg(feature = "png")]
 mod visual;
+mod wire;
 
 use compare::Finding;
 use contracts::ContractPlan;
@@ -17,7 +20,26 @@ use std::{
     process::ExitCode,
 };
 
-const HELP: &str = "Reconform: capture and compare observations\n\n  reconform compare LEFT RIGHT --plan PLAN [--format human|json] [--output FILE]\n  reconform check BUNDLE --plan CONTRACTS [--format human|json] [--output FILE]\n  reconform plan MANIFEST [--format human|json]\n  reconform capture MANIFEST --allow-exec ROOT --output BUNDLE [--format human|json]\n  reconform compare-png LEFT RIGHT --plan POLICY [--format human|json] (requires png feature)\n  reconform validate FILE --kind bundle|plan|contracts [--format human|json]\n  reconform version\n\nJSON inputs: schema 1.0 UTF-8, at most 8 MiB each. Only capture executes targets.\nCapture runs with your privileges; process cleanup is not a sandbox.\nOutput files must not already exist. Exit: 0 pass/captured, 1 mismatch,\n2 invalid input, 3 I/O error, 4 inconclusive/unsupported. See docs/.\n";
+const HELP: &str = r#"Reconform: capture and compare observations
+
+  reconform init DIRECTORY [--format human|json]
+  reconform doctor [--format human|json]
+  reconform compare LEFT RIGHT --plan PLAN [--format human|json|junit] [--output FILE]
+  reconform check BUNDLE --plan CONTRACTS [--format human|json|junit] [--output FILE]
+  reconform plan CAPTURE_MANIFEST [--format human|json]
+  reconform capture MANIFEST --allow-exec ROOT --output BUNDLE [--format human|json]
+  reconform run SCENARIO --allow-exec ROOT [--format human|json|junit] [--output FILE]
+  reconform report REPORT [--format human|json|junit] [--output FILE]
+  reconform compare-png LEFT RIGHT --plan POLICY [--diff PNG] [--format human|json]
+  reconform validate FILE --kind bundle|plan|contracts [--format human|json]
+  reconform version
+
+PNG commands and policies require the png feature. JSON inputs use schema 1.0,
+UTF-8 and an 8 MiB limit. Only capture and run execute targets, with your privileges.
+Process cleanup is not a sandbox. Output files must not already exist.
+Exit: 0 pass/captured, 1 mismatch, 2 invalid input, 3 I/O error,
+4 inconclusive/unsupported. See docs/ for command formats and limitations.
+"#;
 
 #[derive(Debug)]
 struct Error {
@@ -77,6 +99,8 @@ fn digest(bytes: &[u8]) -> String {
 
 fn read<T: DeserializeOwned>(path: &str) -> Result<(T, InputIdentity), Error> {
     let (bytes, identity) = read_bytes(path, MAX_BYTES)?;
+    wire::unique_keys(&bytes)
+        .map_err(|_| Error::config("invalid JSON or duplicate object keys"))?;
     let value = serde_json::from_slice(&bytes).map_err(|e| {
         Error::config(format!(
             "invalid JSON/schema at line {}, column {}",
@@ -131,6 +155,7 @@ struct Options {
     json: bool,
     allow_exec: Option<String>,
     diff: Option<String>,
+    junit: bool,
 }
 fn options(args: &[String]) -> Result<Options, Error> {
     let mut result = Options {
@@ -141,6 +166,7 @@ fn options(args: &[String]) -> Result<Options, Error> {
         json: false,
         allow_exec: None,
         diff: None,
+        junit: false,
     };
     let mut seen = std::collections::BTreeSet::new();
     let mut i = 0;
@@ -162,6 +188,7 @@ fn options(args: &[String]) -> Result<Options, Error> {
                 "--diff" => result.diff = Some(value.clone()),
                 "--format" => match value.as_str() {
                     "json" => result.json = true,
+                    "junit" => result.junit = true,
                     "human" => (),
                     _ => return Err(Error::config("format must be human or json")),
                 },
@@ -220,6 +247,18 @@ fn write_new(path: &Path, bytes: &[u8]) -> Result<(), Error> {
 }
 
 fn emit(value: &impl Serialize, human: &str, options: &Options) -> Result<(), Error> {
+    if options.junit {
+        let value = serde_json::to_value(value)
+            .map_err(|_| Error::config("report serialization failed"))?;
+        let xml = reporting::junit(&value)?;
+        if let Some(path) = &options.output {
+            write_new(Path::new(path), xml.as_bytes())?;
+        }
+        return io::stdout()
+            .lock()
+            .write_all(xml.as_bytes())
+            .map_err(Error::io);
+    }
     let mut json = serde_json::to_vec_pretty(value)
         .map_err(|_| Error::config("report serialization failed"))?;
     json.push(b'\n');
@@ -253,15 +292,68 @@ fn execute(args: &[String]) -> Result<u8, Error> {
         return Ok(0);
     }
     let opts = options(&args[1..])?;
+    if opts.junit && !["compare", "check", "run", "report"].contains(&command.as_str()) {
+        return Err(Error::config(
+            "JUnit requires compare, check, run or report",
+        ));
+    }
     if opts.diff.is_some() && command != "compare-png" {
         return Err(Error::config("--diff is only valid for compare-png"));
     }
-    if opts.allow_exec.is_some() && command != "capture" {
+    if opts.allow_exec.is_some() && !["capture", "run"].contains(&command.as_str()) {
         return Err(Error::config("--allow-exec is only valid for capture"));
     }
     match command.as_str() {
-        "capture" => capture::execute(&opts, false),
-        "plan" => capture::execute(&opts, true),
+        "doctor" => {
+            if !opts.positional.is_empty() || opts.plan.is_some() || opts.kind.is_some() {
+                return Err(Error::config("doctor takes no positional arguments"));
+            }
+            let supported = cfg!(any(unix, windows));
+            emit(
+                &serde_json::json!({"schema_version":VERSION,"tool_version":env!("CARGO_PKG_VERSION"),"os":std::env::consts::OS,"architecture":std::env::consts::ARCH,"capture_available":supported,"png_available":cfg!(feature="png"),"isolation":"none","filesystem_write_tested":false}),
+                "Reconform capabilities inspected; use --format json for platform and feature details.\n",
+                &opts,
+            )?;
+            Ok(if supported { 0 } else { 4 })
+        }
+        "init" => {
+            if opts.positional.len() != 1
+                || opts.plan.is_some()
+                || opts.kind.is_some()
+                || opts.output.is_some()
+            {
+                return Err(Error::config("init requires a fresh DIRECTORY"));
+            }
+            let directory = Path::new(&opts.positional[0]);
+            fs::create_dir(directory).map_err(Error::io)?;
+            for (name, contents) in [
+                (
+                    "reference.json",
+                    include_str!("../examples/recorded/reference.json"),
+                ),
+                (
+                    "candidate.json",
+                    include_str!("../examples/recorded/candidate.json"),
+                ),
+                ("plan.json", include_str!("../examples/recorded/plan.json")),
+                (
+                    "contracts.json",
+                    include_str!("../examples/recorded/contracts.json"),
+                ),
+            ] {
+                write_new(&directory.join(name), contents.as_bytes())?;
+            }
+            emit(
+                &serde_json::json!({"schema_version":VERSION,"directory":directory,"files":["reference.json","candidate.json","plan.json","contracts.json"],"compare":["reconform","compare",directory.join("reference.json"),directory.join("candidate.json"),"--plan",directory.join("plan.json"),"--format","json"]}),
+                "Created a runnable recorded comparison example; its candidate intentionally differs.\n",
+                &opts,
+            )?;
+            Ok(0)
+        }
+        "capture" => capture::execute(&opts, false, false),
+        "plan" => capture::execute(&opts, true, false),
+        "run" => scenario::execute(&opts),
+        "report" => reporting::execute(&opts),
         #[cfg(feature = "png")]
         "compare-png" => visual::execute(&opts),
         "validate" => {

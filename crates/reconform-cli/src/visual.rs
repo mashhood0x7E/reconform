@@ -62,6 +62,7 @@ pub fn compare_encoded(
 struct Policy {
     schema_version: String,
     tolerance: u8,
+    #[serde(deserialize_with = "crate::model::number")]
     max_mismatch_fraction: f64,
     region: Option<[usize; 4]>,
     // Untagged images require an explicit declaration by the caller.

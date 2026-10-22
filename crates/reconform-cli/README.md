@@ -22,3 +22,8 @@ Licensed under MIT OR Apache-2.0.
 Candidate-only contracts are available with `reconform check candidate.json --plan
 contracts.json`. Supported expressions are Exists, NonEmpty, Between and ExitSuccess.
 Incomplete captures cannot satisfy these contracts.
+
+Contracts also support typed equality, JSON fields and event occurrence/order.
+`run` preflights and executes complete capture/verification scenarios. `report`
+renders saved reports, and `--format junit` provides a CI-oriented summary.
+`init` creates a runnable recorded example; `doctor` reports compiled capabilities.

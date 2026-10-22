@@ -341,7 +341,37 @@ fn run(step: &Step, prepared: &Prepared) -> Result<(Vec<Observation>, &'static s
     Ok((observations, reason))
 }
 
-pub fn execute(opts: &Options, dry_run: bool) -> Result<u8, Error> {
+pub struct Capabilities {
+    pub scenario: String,
+    pub checkpoints: Vec<String>,
+    pub channels: std::collections::BTreeSet<(String, String)>,
+    pub files: std::collections::BTreeSet<PathBuf>,
+}
+pub fn preflight(path: &str, root: &Path) -> Result<Capabilities, Error> {
+    let (manifest, _) = read::<Manifest>(path)?;
+    let prepared = prepare(&manifest, Some(root))?;
+    let mut channels = std::collections::BTreeSet::new();
+    let mut files = std::collections::BTreeSet::new();
+    for (step, prepared) in manifest.steps.iter().zip(prepared) {
+        for channel in ["stdout", "stderr", "exit"]
+            .into_iter()
+            .chain(step.files.iter().map(|f| f.channel.as_str()))
+        {
+            channels.insert((step.checkpoint.clone(), channel.into()));
+        }
+        for file in &step.files {
+            files.insert(prepared.cwd.join(&file.path));
+        }
+    }
+    Ok(Capabilities {
+        scenario: manifest.scenario,
+        checkpoints: manifest.steps.into_iter().map(|s| s.checkpoint).collect(),
+        channels,
+        files,
+    })
+}
+
+pub fn execute(opts: &Options, dry_run: bool, quiet: bool) -> Result<u8, Error> {
     if opts.positional.len() != 1 || opts.kind.is_some() || opts.plan.is_some() {
         return Err(Error::config(
             "capture/plan requires MANIFEST; capture also requires --allow-exec ROOT --output BUNDLE",
@@ -381,8 +411,12 @@ pub fn execute(opts: &Options, dry_run: bool) -> Result<u8, Error> {
         )?;
         return Ok(0);
     }
-    ctrlc::set_handler(|| CANCELLED.store(true, Ordering::Relaxed))
-        .map_err(|_| Error::config("cannot install process cancellation handler"))?;
+    static HANDLER: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    if !HANDLER
+        .get_or_init(|| ctrlc::set_handler(|| CANCELLED.store(true, Ordering::Relaxed)).is_ok())
+    {
+        return Err(Error::config("cannot install process cancellation handler"));
+    }
     let mut observations = Vec::new();
     let mut outcomes = Vec::new();
     for (step, p) in manifest.steps.iter().zip(&prepared) {
@@ -458,6 +492,9 @@ pub fn execute(opts: &Options, dry_run: bool) -> Result<u8, Error> {
         &bytes,
     )?;
     let complete = outcomes.iter().all(|r| *r == "COMPLETE");
+    if quiet {
+        return Ok(if complete { 0 } else { 4 });
+    }
     let report = json!({"schema_version":VERSION,"method":"process-capture/1","verdict":if complete {"captured"} else {"inconclusive"},"outcomes":outcomes,"bundle_digest":digest(&bytes),"output":opts.output});
     let stdout_opts = Options {
         positional: vec![],
@@ -467,6 +504,7 @@ pub fn execute(opts: &Options, dry_run: bool) -> Result<u8, Error> {
         json: opts.json,
         allow_exec: None,
         diff: None,
+        junit: false,
     };
     emit(
         &report,

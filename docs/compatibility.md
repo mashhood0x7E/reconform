@@ -31,7 +31,7 @@ Rerun recipes preserve argument boundaries and include content digests for verif
 
 ## Not part of 0.1
 
-Persistent content-addressed artifact storage, semantic JSON observations, baseline promotion,
+Persistent content-addressed artifact storage, baseline promotion,
 frame timelines, game adapters, MCP and reduction remain future work. No command or
 feature flag pretends to implement them. macOS and other targets are not qualified.
 

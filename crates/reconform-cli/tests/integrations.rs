@@ -173,6 +173,73 @@ fn capture_is_explicit_bounded_and_reusable() {
     assert!(!f.0.join("missing.json").exists());
 }
 
+#[test]
+fn run_preflights_and_verifies_without_manual_bundle_steps() {
+    let f = Fixture::new();
+    let exe = f.executable();
+    let m = f.manifest(&exe, "echo");
+    f.put("candidate.json", &m);
+    f.put("reference.json", &m);
+    let mut plan = json!({"schema_version":"1.0","scenario":"capture-test","strict_environment":true,"checks":[{"id":"output","checkpoint":"done","channel":"stdout","occurrence":0,"required":true,"policy":{"kind":"exact"}}]});
+    f.put("plan.json", &plan);
+    let scenario = json!({"schema_version":"1.0","candidate":f.0.join("candidate.json"),"reference":f.0.join("reference.json"),"plan":f.0.join("plan.json"),"evidence_dir":f.0.join("evidence")});
+    f.put("run.json", &scenario);
+    let run = || {
+        f.command()
+            .args(["run", "run.json", "--allow-exec"])
+            .arg(&f.0)
+            .args(["--format", "json"])
+            .output()
+            .unwrap()
+    };
+    plan["checks"][0]["checkpoint"] = json!("absent");
+    f.put("plan.json", &plan);
+    parse(run(), 2);
+    assert!(!f.0.join("evidence").exists());
+    plan["checks"][0]["checkpoint"] = json!("done");
+    f.put("plan.json", &plan);
+    assert_eq!(parse(run(), 0)["verdict"], "pass");
+    assert!(f.0.join("evidence/candidate.json").is_file());
+    parse(run(), 2);
+}
+
+#[cfg(unix)]
+#[test]
+fn interrupted_capture_keeps_partial_evidence() {
+    let f = Fixture::new();
+    let exe = f.executable();
+    let mut m = f.manifest(&exe, "parent");
+    m["steps"][0]["stdin"] = json!("");
+    f.put("capture.json", &m);
+    let mut child = f
+        .command()
+        .args(["capture", "capture.json", "--allow-exec"])
+        .arg(&f.0)
+        .args(["--output", "cancelled.json", "--format", "json"])
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    std::thread::sleep(Duration::from_millis(200));
+    assert!(
+        Command::new("kill")
+            .args(["-TERM", &child.id().to_string()])
+            .status()
+            .unwrap()
+            .success()
+    );
+    let start = Instant::now();
+    while child.try_wait().unwrap().is_none() {
+        assert!(start.elapsed() < Duration::from_secs(5));
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert_eq!(
+        parse(child.wait_with_output().unwrap(), 4)["outcomes"][0],
+        "CANCELLED"
+    );
+    std::thread::sleep(Duration::from_millis(800));
+    assert!(!f.0.join("escaped.txt").exists());
+}
+
 #[cfg(feature = "png")]
 fn png_file(f: &Fixture, name: &str, width: u32, pixels: &[u8]) {
     let mut encoder = png::Encoder::new(fs::File::create(f.0.join(name)).unwrap(), width, 1);

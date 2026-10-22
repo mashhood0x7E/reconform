@@ -32,3 +32,28 @@ Executable SHA-256 identities are recorded as capture provenance; Reconform sepa
 hashes complete recording inputs with BLAKE3. Captures include stdout, stderr and exit.
 The pilot's `run.ps1` is capture test infrastructure, not a shipped execution adapter.
 No sandbox, independent usability study, or external maintainer approval is implied.
+
+## Native capture and visual scenario follow-up
+
+On 22 October the ledger cases were rerun using Reconform's `capture` command
+instead of the pilot's .NET capture helper. All 27 native captures completed;
+the 18 comparisons and 18 report reruns matched the earlier outcomes.
+
+A second independent project, `reconform-pilot/visual`, renders a 32×16 image and
+prints JSON state at `after-movement`. It depends on the PNG codec, with no
+Reconform dependency. The CLI `run` command captures stdout, exit status and a
+fresh screenshot for each subject, then evaluates JSON and PNG policies together.
+
+| Candidate | State check | Image check | Overall |
+| --- | --- | --- | --- |
+| Corrected implementation | Pass | Pass | Pass |
+| Position shifted by one pixel | Fail | Fail | Fail |
+| Correct position, wrong square color | Pass | Fail | Fail |
+
+All three reports passed the published schema and reproduced byte-for-byte from
+their retained bundles. The color-only defect measured 16 mismatched pixels of
+512 (0.03125), maximum channel error 255, mean channel error 3.984375 and bounds
+`[6,4,10,8]`. Standalone PNG comparison emitted a 125-byte diff PNG with its
+BLAKE3 identity; its report also passed independent schema validation. This
+separates a behavioral defect from a purely graphical change using actual
+executable output, while retaining the limitations of a controlled synthetic pilot.

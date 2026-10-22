@@ -167,3 +167,54 @@ embedded plan is validated separately with the comparison or contract schema;
 `./scripts/check-schemas.ps1` checks emitted reports and representative inputs using
 PowerShell's independent JSON Schema validator. Numeric f64 range limits remain CLI
 semantic validation to avoid imposing enormous decimal literals on schema tooling.
+
+## Structured values and explicit normalization
+
+`{"kind":"json","value":...}` carries a JSON value. Exact comparison ignores
+object key order and preserves array order and number representation. Large JSON
+integers are preserved without conversion to floating point. Duplicate object
+keys are rejected throughout input documents and parsed JSON text/bytes.
+
+`{"kind":"json","pointer":"/state/position","tolerance":0.01}` selects one
+value by RFC 6901 JSON Pointer. It accepts JSON payloads or parses text/bytes as
+JSON, allowing captured stdout to be checked directly. An empty pointer selects
+the whole value. Missing selected fields are inconclusive; malformed JSON is an
+error. Tolerance applies only when both selected values are numbers. Other
+selected values use exact structural equality. Positive tolerance uses finite
+IEEE 754 f64 arithmetic and rejects magnitudes at or above 2^53 rather than
+silently rounding large integers. Zero tolerance preserves exact JSON numbers,
+including distinctions such as integer `1` and decimal `1.0`.
+
+`{"kind":"text","normalize_newlines":true,"trim_trailing_whitespace":true}`
+accepts text or UTF-8 bytes. Newline normalization replaces CRLF and bare CR with
+LF. Trimming removes ASCII spaces and tabs at each LF-delimited line end; it does
+not remove the final newline. Both switches are required, applied symmetrically
+and echoed in the report. Difference offsets refer to normalized text.
+
+Additional contract expressions:
+
+| Expression | Meaning |
+| --- | --- |
+| `{"kind":"equals","value":{"kind":"text","value":"ready"}}` | Exact typed payload equality |
+| `{"kind":"json_exists","pointer":"/ready"}` | Selected JSON field exists, including a null value |
+| `{"kind":"event_contains","event":"saved"}` | Exact event string occurs |
+| `{"kind":"event_order","events":["loaded","saved"]}` | Nonempty ordered subsequence; intervening events permitted |
+
+JSON `non_empty` rejects null and empty strings/arrays/objects. Complete scalar
+JSON values are nonempty. Partial observations remain inconclusive for every
+expression; required checks never pass because a capture was skipped.
+
+## Saved reports and JUnit
+
+`reconform report result.json --format human|json|junit` renders a saved recorded
+comparison/contract report without executing targets. Its required findings must
+agree with the aggregate verdict. Imported reports remain untrusted claims.
+
+`compare`, `check` and `run` also accept `--format junit`. This documented subset
+emits one `testsuite` and one `testcase` per finding. Required mismatches become
+`failure`, verifier errors become `error`, and unsupported/inconclusive or failed
+optional checks become `skipped`. The CLI's nonzero exit code still enforces
+required inconclusive checks; JUnit consumers must not treat skips as passes.
+No execution times or stack traces are invented. With JUnit selected, `--output`
+saves XML; other modes continue to save JSON. Save the JSON report when complete
+policy, digest and reproduction details are needed.

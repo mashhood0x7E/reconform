@@ -64,3 +64,33 @@ not protection against concurrent binary replacement.
 
 The original manifest and executable files are required for another capture.
 Recorded bundles can be compared repeatedly without executing anything.
+
+## Run a scenario
+
+`reconform run run.json --allow-exec ROOT --format json --output report.json`
+combines preflight, capture and verification. Its manifest is:
+
+```json
+{
+  "schema_version": "1.0",
+  "reference": "C:/work/demo/reference-capture.json",
+  "candidate": "C:/work/demo/candidate-capture.json",
+  "plan": "C:/work/demo/comparison-plan.json",
+  "evidence_dir": "C:/work/demo/evidence/run-001"
+}
+```
+
+Omit `reference` (or use null) for candidate-only contract verification. `plan`
+then names a contract plan. Both capture manifests and the verification plan are
+validated before launch, including scenario IDs and checkpoint references.
+The evidence directory must be an absolute fresh path with an existing parent.
+Capture bundles remain there even if later verification fails. An incomplete
+capture stops the run with exit 4 and cannot produce a passing report. Successful
+reports include a replay command using the retained bundles, so reproducing the
+comparison does not execute the targets again. Another live run requires a fresh
+evidence directory and fresh target file-output paths.
+
+`reconform init DIRECTORY --format json` creates a working recorded example in a
+fresh directory and prints its comparison arguments. Its candidate intentionally
+differs. `reconform doctor --format json` reports compiled features and platform
+capabilities; it does not claim to test filesystem permissions or provide isolation.

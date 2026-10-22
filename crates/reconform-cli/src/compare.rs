@@ -88,6 +88,54 @@ fn compare(
         return (Verdict::Inconclusive, "KIND_MISMATCH", None);
     }
     let (verdict, location) = match (&a.payload, &b.payload, &check.policy) {
+        (Payload::Json(a), Payload::Json(b), Policy::Exact {}) => {
+            (if a == b { Verdict::Pass } else { Verdict::Fail }, None)
+        }
+        (a, b, Policy::Json { pointer, tolerance }) => {
+            let (Ok(a), Ok(b)) = (json_value(a), json_value(b)) else {
+                return (Verdict::Error, "JSON_DECODE_ERROR", None);
+            };
+            let (Some(a), Some(b)) = (a.pointer(pointer), b.pointer(pointer)) else {
+                return (Verdict::Inconclusive, "JSON_PATH_MISSING", None);
+            };
+            let verdict = if *tolerance == 0.0 || !a.is_number() || !b.is_number() {
+                if a == b { Verdict::Pass } else { Verdict::Fail }
+            } else {
+                // Large values cannot safely enter the f64 tolerance path.
+                if [a, b].iter().any(|v| {
+                    v.as_i64().is_some_and(|n| n.unsigned_abs() > (1u64 << 53))
+                        || v.as_u64().is_some_and(|n| n > (1u64 << 53))
+                        || v.as_f64().is_none_or(|n| n.abs() >= (1u64 << 53) as f64)
+                }) {
+                    return (Verdict::Unsupported, "JSON_NUMBER_PRECISION", None);
+                }
+                match (a.as_f64(), b.as_f64()) {
+                    (Some(a), Some(b)) => {
+                        compare_numbers(a, b, *tolerance).unwrap_or(Verdict::Error)
+                    }
+                    _ => Verdict::Error,
+                }
+            };
+            (verdict, None)
+        }
+        (
+            a,
+            b,
+            Policy::Text {
+                normalize_newlines,
+                trim_trailing_whitespace,
+            },
+        ) => {
+            let (Some(a), Some(b)) = (text_value(a), text_value(b)) else {
+                return (Verdict::Error, "TEXT_DECODE_ERROR", None);
+            };
+            let a = normalize_text(a, *normalize_newlines, *trim_trailing_whitespace);
+            let b = normalize_text(b, *normalize_newlines, *trim_trailing_whitespace);
+            (
+                compare_bytes(a.as_bytes(), b.as_bytes()),
+                first_difference(a.as_bytes(), b.as_bytes()).map(Location::Byte),
+            )
+        }
         #[cfg(feature = "png")]
         (
             Payload::Bytes(a),
@@ -158,4 +206,45 @@ fn compare(
         },
         location,
     )
+}
+
+pub fn json_value(payload: &Payload) -> Result<std::borrow::Cow<'_, serde_json::Value>, ()> {
+    use std::borrow::Cow;
+    match payload {
+        Payload::Json(value) => Ok(Cow::Borrowed(value)),
+        Payload::Text(value) => {
+            crate::wire::unique_keys(value.as_bytes()).map_err(|_| ())?;
+            serde_json::from_str(value).map(Cow::Owned).map_err(|_| ())
+        }
+        Payload::Bytes(value) => {
+            crate::wire::unique_keys(value).map_err(|_| ())?;
+            serde_json::from_slice(value)
+                .map(Cow::Owned)
+                .map_err(|_| ())
+        }
+        _ => Err(()),
+    }
+}
+fn text_value(payload: &Payload) -> Option<&str> {
+    match payload {
+        Payload::Text(v) => Some(v),
+        Payload::Bytes(v) => std::str::from_utf8(v).ok(),
+        _ => None,
+    }
+}
+fn normalize_text(value: &str, newlines: bool, trailing: bool) -> String {
+    let value = if newlines {
+        value.replace("\r\n", "\n").replace('\r', "\n")
+    } else {
+        value.to_owned()
+    };
+    if trailing {
+        value
+            .split('\n')
+            .map(|line| line.trim_end_matches([' ', '\t']))
+            .collect::<Vec<_>>()
+            .join("\n")
+    } else {
+        value
+    }
 }

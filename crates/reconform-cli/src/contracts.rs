@@ -28,22 +28,44 @@ pub struct ContractCheck {
     pub expression: Expression,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Expression {
     Exists {},
     NonEmpty {},
-    Between { min: f64, max: f64 },
+    Between {
+        #[serde(deserialize_with = "crate::model::number")]
+        min: f64,
+        #[serde(deserialize_with = "crate::model::number")]
+        max: f64,
+    },
     ExitSuccess {},
+    Equals {
+        value: Payload,
+    },
+    JsonExists {
+        pointer: String,
+    },
+    EventContains {
+        event: String,
+    },
+    EventOrder {
+        #[serde(deserialize_with = "crate::model::items")]
+        events: Vec<String>,
+    },
 }
 impl Expression {
-    fn contract(self) -> Contract {
-        match self {
+    fn contract(&self) -> Option<Contract> {
+        Some(match self {
             Self::Exists {} => Contract::Exists,
             Self::NonEmpty {} => Contract::NonEmpty,
-            Self::Between { min, max } => Contract::Between { min, max },
+            Self::Between { min, max } => Contract::Between {
+                min: *min,
+                max: *max,
+            },
             Self::ExitSuccess {} => Contract::ExitSuccess,
-        }
+            _ => return None,
+        })
     }
 }
 impl ContractPlan {
@@ -59,6 +81,16 @@ impl ContractPlan {
         }
         let mut ids = BTreeSet::new();
         for c in &self.checks {
+            if let Expression::JsonExists { pointer } = &c.expression
+                && !crate::model::json_pointer(pointer)
+            {
+                return Err("invalid JSON pointer");
+            }
+            if let Expression::EventOrder { events } = &c.expression
+                && events.is_empty()
+            {
+                return Err("event order requires at least one event");
+            }
             if !id(&c.id) || !id(&c.checkpoint) || !id(&c.channel) || !ids.insert(&c.id) {
                 return Err("invalid or duplicate contract check identifier");
             }
@@ -93,18 +125,7 @@ pub fn evaluate(bundle: &Bundle, plan: &ContractPlan) -> (Verdict, Vec<Finding>)
         let observation = bundle.observations.iter().find(|o| {
             o.checkpoint == c.checkpoint && o.channel == c.channel && o.occurrence == c.occurrence
         });
-        let evidence = match observation {
-            None => Evidence::Missing,
-            Some(o) if o.completeness != Completeness::Complete => Evidence::Incomplete,
-            Some(o) => Evidence::Complete(match &o.payload {
-                Payload::Text(v) => ObservationView::Bytes(v.as_bytes()),
-                Payload::Bytes(v) => ObservationView::Bytes(v),
-                Payload::Scalar(v) => ObservationView::Scalar(*v),
-                Payload::Exit(v) => ObservationView::Exit(*v),
-                Payload::Events(v) => ObservationView::Events(v),
-            }),
-        };
-        let verdict = evaluate_contract(c.expression.contract(), evidence);
+        let verdict = evaluate_expression(&c.expression, observation);
         let code = match verdict {
             Verdict::Pass => "CONTRACT_SATISFIED",
             Verdict::Fail => "CONTRACT_VIOLATED",
@@ -130,4 +151,88 @@ pub fn evaluate(bundle: &Bundle, plan: &ContractPlan) -> (Verdict, Vec<Finding>)
         });
     }
     (aggregate(gate), findings)
+}
+
+fn evaluate_expression(
+    expression: &Expression,
+    observation: Option<&crate::model::Observation>,
+) -> Verdict {
+    let Some(observation) = observation else {
+        return if matches!(expression, Expression::Exists {}) {
+            Verdict::Fail
+        } else {
+            Verdict::Inconclusive
+        };
+    };
+    if observation.completeness != Completeness::Complete {
+        return Verdict::Inconclusive;
+    }
+    let result = match expression {
+        Expression::Equals { value } => {
+            if value.kind() != observation.payload.kind() {
+                return Verdict::Unsupported;
+            }
+            value == &observation.payload
+        }
+        Expression::JsonExists { pointer } => {
+            let Ok(value) = crate::compare::json_value(&observation.payload) else {
+                return Verdict::Error;
+            };
+            value.pointer(pointer).is_some()
+        }
+        Expression::EventContains { event } => {
+            let Payload::Events(events) = &observation.payload else {
+                return Verdict::Unsupported;
+            };
+            events.contains(event)
+        }
+        Expression::EventOrder { events: expected } => {
+            let Payload::Events(events) = &observation.payload else {
+                return Verdict::Unsupported;
+            };
+            let mut next = expected.iter();
+            let mut wanted = next.next();
+            for event in events {
+                if wanted == Some(event) {
+                    wanted = next.next();
+                }
+            }
+            wanted.is_none()
+        }
+        _ => {
+            if let Payload::Json(value) = &observation.payload {
+                return match expression {
+                    Expression::Exists {} => Verdict::Pass,
+                    Expression::NonEmpty {} => {
+                        if match value {
+                            serde_json::Value::Null => false,
+                            serde_json::Value::String(v) => !v.is_empty(),
+                            serde_json::Value::Array(v) => !v.is_empty(),
+                            serde_json::Value::Object(v) => !v.is_empty(),
+                            _ => true,
+                        } {
+                            Verdict::Pass
+                        } else {
+                            Verdict::Fail
+                        }
+                    }
+                    _ => Verdict::Unsupported,
+                };
+            }
+            let evidence = Evidence::Complete(match &observation.payload {
+                Payload::Text(v) => ObservationView::Bytes(v.as_bytes()),
+                Payload::Bytes(v) => ObservationView::Bytes(v),
+                Payload::Scalar(v) => ObservationView::Scalar(*v),
+                Payload::Exit(v) => ObservationView::Exit(*v),
+                Payload::Events(v) => ObservationView::Events(v),
+                Payload::Json(_) => return Verdict::Unsupported,
+            });
+            return expression
+                .contract()
+                .map_or(Verdict::Unsupported, |contract| {
+                    evaluate_contract(contract, evidence)
+                });
+        }
+    };
+    if result { Verdict::Pass } else { Verdict::Fail }
 }

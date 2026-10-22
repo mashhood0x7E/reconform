@@ -2,44 +2,590 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Reconform verification report 1.0",
   "oneOf": [
-    {"$ref":"#/$defs/report"},
-    {"type":"object","additionalProperties":false,"required":["schema_version","verdict","code","message"],"properties":{"schema_version":{"const":"1.0"},"verdict":{"const":"error"},"code":{"enum":["CONFIG_INVALID","IO_ERROR"]},"message":{"type":"string"}}}
-  ],
-  "$defs": {
-    "id":{"type":"string","pattern":"^[a-zA-Z0-9._-]{1,128}$"},
-    "digest":{"type":"string","pattern":"^blake3:[a-f0-9]{64}$"},
-    "input":{"type":"object","additionalProperties":false,"required":["path","digest"],"properties":{"path":{"type":"string","minLength":1},"digest":{"$ref":"#/$defs/digest"}}},
-    "subject":{"type":"object","additionalProperties":false,"required":["id","provenance","environment"],"properties":{"id":{"$ref":"#/$defs/id"},"provenance":{"type":"string","minLength":1},"environment":{"type":["string","null"]}}},
-    "finding":{
-      "type":"object","additionalProperties":false,
-      "required":["id","checkpoint","channel","occurrence","required","verdict","code","location"],
-      "properties":{
-        "id":{"$ref":"#/$defs/id"},"checkpoint":{"$ref":"#/$defs/id"},"channel":{"$ref":"#/$defs/id"},
-        "occurrence":{"type":"integer","minimum":0,"maximum":4294967295},"required":{"type":"boolean"},
-        "verdict":{"enum":["pass","fail","inconclusive","unsupported","error"]},
-        "code":{"enum":["ENVIRONMENT_MISMATCH","OBSERVATION_MISSING","OBSERVATION_PARTIAL","KIND_MISMATCH","POLICY_UNSUPPORTED","COMPARE_EQUAL","COMPARE_DIFFERENT","COMPARE_ERROR","CONTRACT_SATISFIED","CONTRACT_VIOLATED","CONTRACT_UNSUPPORTED","CONTRACT_ERROR","PNG_DECODE_ERROR","PNG_REGION_INVALID","DIMENSION_MISMATCH","PIXEL_COMPARISON"]},
-        "measurements":{"type":"object","additionalProperties":false,"required":["compared_pixels","mismatched_pixels","mismatch_fraction","max_channel_error","mean_channel_error","bounds"],"properties":{"compared_pixels":{"type":"integer","minimum":1},"mismatched_pixels":{"type":"integer","minimum":0},"mismatch_fraction":{"type":"number","minimum":0,"maximum":1},"max_channel_error":{"type":"integer","minimum":0,"maximum":255},"mean_channel_error":{"type":"number","minimum":0,"maximum":255},"bounds":{"type":["array","null"],"minItems":4,"maxItems":4,"items":{"type":"integer","minimum":0}}}},
-        "location":{"oneOf":[{"type":"null"},{"type":"object","additionalProperties":false,"required":["kind","index"],"properties":{"kind":{"enum":["byte","event"]},"index":{"type":"integer","minimum":0}}}]}
+    {
+      "$ref": "#/$defs/report"
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "verdict",
+        "code",
+        "message"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0"
+        },
+        "verdict": {
+          "const": "error"
+        },
+        "code": {
+          "enum": [
+            "CONFIG_INVALID",
+            "IO_ERROR"
+          ]
+        },
+        "message": {
+          "type": "string"
+        }
       }
     },
-    "report":{
-      "type":"object","additionalProperties":false,
-      "required":["schema_version","tool_version","scenario","verdict","method","policy_digest","plan","inputs","subjects","findings","first_divergence","unselected_observations","limitations","reproduce"],
-      "properties":{
-        "schema_version":{"const":"1.0"},"tool_version":{"type":"string"},"scenario":{"$ref":"#/$defs/id"},
-        "verdict":{"enum":["pass","fail","inconclusive","error"]},"method":{"enum":["recorded-parity/1","recorded-contracts/1"]},
-        "policy_digest":{"$ref":"#/$defs/digest"},"plan":{"type":"object"},
-        "inputs":{"type":"array","minItems":2,"maxItems":3,"items":{"$ref":"#/$defs/input"}},
-        "subjects":{"type":"array","minItems":1,"maxItems":2,"items":{"$ref":"#/$defs/subject"}},
-        "findings":{"type":"array","minItems":1,"maxItems":1024,"items":{"$ref":"#/$defs/finding"}},
-        "first_divergence":{"oneOf":[{"type":"null"},{"$ref":"#/$defs/id"}]},
-        "unselected_observations":{"type":"array","minItems":1,"maxItems":2,"items":{"type":"integer","minimum":0,"maximum":1024}},
-        "limitations":{"type":"array","items":{"type":"string"}},"reproduce":{"type":"array","minItems":7,"maxItems":8,"items":{"type":"string"}}
+    {
+      "$ref": "#/$defs/pngReport"
+    }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9._-]{1,128}$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^blake3:[a-f0-9]{64}$"
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "digest"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "digest": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "provenance",
+        "environment"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "provenance": {
+          "type": "string",
+          "minLength": 1
+        },
+        "environment": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "checkpoint",
+        "channel",
+        "occurrence",
+        "required",
+        "verdict",
+        "code",
+        "location"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "checkpoint": {
+          "$ref": "#/$defs/id"
+        },
+        "channel": {
+          "$ref": "#/$defs/id"
+        },
+        "occurrence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "verdict": {
+          "enum": [
+            "pass",
+            "fail",
+            "inconclusive",
+            "unsupported",
+            "error"
+          ]
+        },
+        "code": {
+          "enum": [
+            "ENVIRONMENT_MISMATCH",
+            "OBSERVATION_MISSING",
+            "OBSERVATION_PARTIAL",
+            "KIND_MISMATCH",
+            "POLICY_UNSUPPORTED",
+            "COMPARE_EQUAL",
+            "COMPARE_DIFFERENT",
+            "COMPARE_ERROR",
+            "CONTRACT_SATISFIED",
+            "CONTRACT_VIOLATED",
+            "CONTRACT_UNSUPPORTED",
+            "CONTRACT_ERROR",
+            "PNG_DECODE_ERROR",
+            "PNG_REGION_INVALID",
+            "DIMENSION_MISMATCH",
+            "PIXEL_COMPARISON",
+            "JSON_DECODE_ERROR",
+            "JSON_PATH_MISSING",
+            "JSON_NUMBER_PRECISION",
+            "TEXT_DECODE_ERROR"
+          ]
+        },
+        "measurements": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "compared_pixels",
+            "mismatched_pixels",
+            "mismatch_fraction",
+            "max_channel_error",
+            "mean_channel_error",
+            "bounds"
+          ],
+          "properties": {
+            "compared_pixels": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "mismatched_pixels": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "mismatch_fraction": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "max_channel_error": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            "mean_channel_error": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 255
+            },
+            "bounds": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "location": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "index"
+              ],
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "byte",
+                    "event"
+                  ]
+                },
+                "index": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tool_version",
+        "scenario",
+        "verdict",
+        "method",
+        "policy_digest",
+        "plan",
+        "inputs",
+        "subjects",
+        "findings",
+        "first_divergence",
+        "unselected_observations",
+        "limitations",
+        "reproduce"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0"
+        },
+        "tool_version": {
+          "type": "string"
+        },
+        "scenario": {
+          "$ref": "#/$defs/id"
+        },
+        "verdict": {
+          "enum": [
+            "pass",
+            "fail",
+            "inconclusive",
+            "error"
+          ]
+        },
+        "method": {
+          "enum": [
+            "recorded-parity/1",
+            "recorded-contracts/1"
+          ]
+        },
+        "policy_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "plan": {
+          "type": "object"
+        },
+        "inputs": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/input"
+          }
+        },
+        "subjects": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/subject"
+          }
+        },
+        "findings": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1024,
+          "items": {
+            "$ref": "#/$defs/finding"
+          }
+        },
+        "first_divergence": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/id"
+            }
+          ]
+        },
+        "unselected_observations": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1024
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "reproduce": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 8,
+          "items": {
+            "type": "string"
+          }
+        }
       },
-      "allOf":[
-        {"if":{"properties":{"method":{"const":"recorded-parity/1"}}},"then":{"properties":{"subjects":{"minItems":2},"inputs":{"minItems":3},"unselected_observations":{"minItems":2}}}},
-        {"if":{"properties":{"method":{"const":"recorded-contracts/1"}}},"then":{"properties":{"subjects":{"maxItems":1},"inputs":{"maxItems":2},"unselected_observations":{"maxItems":1}}}}
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "method": {
+                "const": "recorded-parity/1"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "subjects": {
+                "minItems": 2
+              },
+              "inputs": {
+                "minItems": 3
+              },
+              "unselected_observations": {
+                "minItems": 2
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "method": {
+                "const": "recorded-contracts/1"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "subjects": {
+                "maxItems": 1
+              },
+              "inputs": {
+                "maxItems": 2
+              },
+              "unselected_observations": {
+                "maxItems": 1
+              }
+            }
+          }
+        }
       ]
+    },
+    "pngReport": {
+      "properties": {
+        "limitations": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "verdict": {
+          "enum": [
+            "pass",
+            "fail",
+            "inconclusive"
+          ]
+        },
+        "inputs": {
+          "items": {
+            "$ref": "#/$defs/input"
+          },
+          "maxItems": 3,
+          "type": "array",
+          "minItems": 3
+        },
+        "diff": {
+          "properties": {
+            "size_bytes": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "path": {
+              "type": "string"
+            },
+            "media_type": {
+              "const": "image/png"
+            },
+            "digest": {
+              "$ref": "#/$defs/digest"
+            }
+          },
+          "type": "object",
+          "required": [
+            "path",
+            "digest",
+            "media_type",
+            "size_bytes"
+          ],
+          "additionalProperties": false
+        },
+        "schema_version": {
+          "const": "1.0"
+        },
+        "tool_version": {
+          "type": "string"
+        },
+        "dimensions": {
+          "items": {
+            "items": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 2,
+            "type": "array",
+            "minItems": 2
+          },
+          "maxItems": 2,
+          "type": "array",
+          "minItems": 2
+        },
+        "policy": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "title": "Reconform PNG policy 1.0",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "tolerance",
+            "max_mismatch_fraction",
+            "assume_srgb"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "1.0"
+            },
+            "tolerance": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            "max_mismatch_fraction": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "region": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "assume_srgb": {
+              "type": "boolean"
+            }
+          }
+        },
+        "measurements": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "compared_pixels",
+                "mismatched_pixels",
+                "mismatch_fraction",
+                "max_channel_error",
+                "mean_channel_error",
+                "bounds"
+              ],
+              "properties": {
+                "compared_pixels": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "mismatched_pixels": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "mismatch_fraction": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "max_channel_error": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 255
+                },
+                "mean_channel_error": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 255
+                },
+                "bounds": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "minItems": 4,
+                  "maxItems": 4,
+                  "items": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "method": {
+          "const": "png-parity/1"
+        },
+        "reproduce": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "type": "array",
+          "minItems": 8
+        },
+        "policy_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "code": {
+          "enum": [
+            "PIXEL_COMPARISON",
+            "DIMENSION_MISMATCH"
+          ]
+        }
+      },
+      "type": "object",
+      "required": [
+        "schema_version",
+        "tool_version",
+        "method",
+        "verdict",
+        "code",
+        "policy_digest",
+        "policy",
+        "inputs",
+        "measurements",
+        "dimensions",
+        "limitations",
+        "reproduce"
+      ],
+      "additionalProperties": false
     }
   }
 }

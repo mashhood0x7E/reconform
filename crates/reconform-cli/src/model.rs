@@ -5,6 +5,14 @@ pub const VERSION: &str = "1.0";
 pub const MAX_BYTES: u64 = 8 * 1024 * 1024;
 pub const MAX_ITEMS: usize = 1024;
 
+pub fn number<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<f64, D::Error> {
+    let value = serde_json::Number::deserialize(deserializer)?;
+    value
+        .as_f64()
+        .filter(|v| v.is_finite())
+        .ok_or_else(|| serde::de::Error::custom("number must be finite f64"))
+}
+
 // Enforce collection limits while deserializing, rather than first allocating an
 // arbitrarily large Vec and rejecting it during semantic validation.
 fn limited<'de, D, T, const N: usize>(deserializer: D) -> Result<Vec<T>, D::Error>
@@ -82,7 +90,7 @@ pub enum Completeness {
     Unavailable,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(
     tag = "kind",
     content = "value",
@@ -92,9 +100,10 @@ pub enum Completeness {
 pub enum Payload {
     Text(String),
     Bytes(Vec<u8>),
-    Scalar(f64),
+    Scalar(#[serde(deserialize_with = "number")] f64),
     Events(#[serde(deserialize_with = "events")] Vec<String>),
     Exit(i32),
+    Json(serde_json::Value),
 }
 impl Payload {
     pub fn kind(&self) -> &'static str {
@@ -104,6 +113,7 @@ impl Payload {
             Self::Scalar(_) => "scalar",
             Self::Events(_) => "events",
             Self::Exit(_) => "exit",
+            Self::Json(_) => "json",
         }
     }
 }
@@ -131,11 +141,22 @@ pub struct CheckSpec {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Policy {
     Exact {},
+    Text {
+        normalize_newlines: bool,
+        trim_trailing_whitespace: bool,
+    },
+    Json {
+        pointer: String,
+        #[serde(deserialize_with = "number")]
+        tolerance: f64,
+    },
     Absolute {
+        #[serde(deserialize_with = "number")]
         tolerance: f64,
     },
     Png {
         tolerance: u8,
+        #[serde(deserialize_with = "number")]
         max_mismatch_fraction: f64,
         region: Option<[usize; 4]>,
         assume_srgb: bool,
@@ -218,6 +239,11 @@ impl Plan {
         }
         let mut ids = BTreeSet::new();
         for c in &self.checks {
+            if let Policy::Json { pointer, tolerance } = &c.policy
+                && (!json_pointer(pointer) || !tolerance.is_finite() || *tolerance < 0.0)
+            {
+                return Err("invalid JSON pointer or tolerance");
+            }
             if let Policy::Png {
                 max_mismatch_fraction,
                 region,
@@ -240,4 +266,20 @@ impl Plan {
         }
         Ok(())
     }
+}
+
+pub fn json_pointer(pointer: &str) -> bool {
+    if pointer.is_empty() {
+        return true;
+    }
+    if !pointer.starts_with('/') || pointer.len() > 4096 {
+        return false;
+    }
+    let mut chars = pointer.chars();
+    while let Some(c) = chars.next() {
+        if c == '~' && !matches!(chars.next(), Some('0' | '1')) {
+            return false;
+        }
+    }
+    true
 }

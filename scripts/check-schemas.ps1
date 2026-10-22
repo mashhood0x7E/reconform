@@ -12,6 +12,12 @@ foreach ($pair in @(@('reference','bundle'),@('plan','plan'),@('contracts','cont
 $comparison = (& $exe compare (Join-Path $fixtures 'reference.json') (Join-Path $fixtures 'candidate.json') --plan (Join-Path $fixtures 'plan.json') --format json) -join "`n"
 if ($LASTEXITCODE -ne 1) {throw 'Expected mismatch'}
 Assert-Schema $comparison report
+$reportPath = Join-Path $root ('target/schema-report-' + [guid]::NewGuid().ToString('N') + '.json')
+[IO.File]::WriteAllText($reportPath,$comparison)
+$junit = (& $exe report $reportPath --format junit) -join "`n"
+if ($LASTEXITCODE -ne 1) {throw 'Expected saved mismatch exit'}
+$xml = [xml]$junit
+if ([int]$xml.testsuite.failures -ne 1 -or [int]$xml.testsuite.tests -ne 1) {throw 'Unexpected JUnit counts'}
 $contract = (& $exe check (Join-Path $fixtures 'candidate.json') --plan (Join-Path $fixtures 'contracts.json') --format json) -join "`n"
 if ($LASTEXITCODE -ne 0) {throw 'Expected contract pass'}
 Assert-Schema $contract report
@@ -32,5 +38,6 @@ $capture = (& $exe capture $manifestPath --allow-exec (Join-Path $root 'target')
 if ($LASTEXITCODE -ne 0) {throw "Schema capture failed: $capture"}
 Assert-Schema (Get-Content $bundlePath -Raw) bundle
 Assert-Schema '{"schema_version":"1.0","tolerance":0,"max_mismatch_fraction":0,"region":null,"assume_srgb":false}' png-policy
+Assert-Schema '{"schema_version":"1.0","candidate":"candidate.json","reference":null,"plan":"contracts.json","evidence_dir":"C:/fresh/run"}' scenario
 Write-Output 'Bundle, plan, contract, report, error, capture and PNG policy schemas verified.'
 exit 0

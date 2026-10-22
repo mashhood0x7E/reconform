@@ -1,0 +1,13 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"Reconform process scenario 1.0",
+  "type":"object","additionalProperties":false,
+  "required":["schema_version","candidate","plan","evidence_dir"],
+  "properties":{
+    "schema_version":{"const":"1.0"},
+    "reference":{"type":["string","null"],"minLength":1},
+    "candidate":{"type":"string","minLength":1},
+    "plan":{"type":"string","minLength":1},
+    "evidence_dir":{"type":"string","minLength":1}
+  }
+}
