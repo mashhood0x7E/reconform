@@ -4,7 +4,7 @@ Compare recorded observations from a reference and candidate implementation.
 Reconform reports which checks differ, which could not be verified, and how to
 repeat the comparison. Neither application needs to depend on Reconform.
 
-This is unreleased work toward 0.1.0. The CLI supports offline
+This is the unreleased 0.1.0 release candidate. The CLI supports offline
 text, bytes, JSON, finite numbers, ordered string events, and exit-code comparisons.
 `renderparity` separately compares borrowed RGBA8 frames. The CLI also provides
 [bounded executable capture](docs/process-capture.md) and opt-in

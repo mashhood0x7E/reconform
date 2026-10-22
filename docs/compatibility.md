@@ -2,8 +2,8 @@
 
 The unreleased 0.1.0 implementation supports recorded-evidence comparison,
 candidate-only contracts, bounded native executable capture and PNG comparisons,
-alongside standalone in-memory RGBA8 comparison. Publication remains on hold
-while the expanded workflow completes qualification.
+alongside standalone in-memory RGBA8 comparison. The implementation passed the
+Windows/Linux release checks; publication awaits the owner's approval.
 
 ## Rust APIs
 
@@ -45,3 +45,10 @@ never substitute for that approval or for checking the eventual hosted docs.rs b
 Qualification evidence is in measurements.md and pilot.md; CI runs formatting,
 Clippy, unit/integration/doc tests, independent consumers, schema checks and packaging.
 The controlled pilot is not an external usability study or a guarantee of bug absence.
+
+The expanded implementation and synchronized cancellation test passed the complete
+[Windows/Linux CI run](https://github.com/mashhood0x7E/reconform/actions/runs/39831311891)
+at `9153fd1`. This includes default and all-feature tests, Clippy, independent
+consumers and package verification. The all-features `cargo publish --workspace
+--dry-run --locked` also passed locally. The installed release CLI verified an
+executable scenario with JSON state and captured PNG output. No upload was made.

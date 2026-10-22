@@ -17,4 +17,4 @@
 - Reject incomplete evidence, invalid schemas and empty required gates.
 - Compare borrowed RGBA8 frames with explicit alpha metadata, tolerances and rectangular regions.
 
-Release qualification is ongoing; no crate has been published.
+Windows/Linux release checks passed; publication awaits owner approval.
