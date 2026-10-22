@@ -35,7 +35,7 @@ fn main() {
  "sleep" => std::thread::sleep(Duration::from_secs(10)),
  "flood" => loop {std::io::stdout().write_all(&[65;4096]).unwrap();},
  "child" => {std::thread::sleep(Duration::from_millis(700));std::fs::write("escaped.txt","alive").unwrap();},
- "parent" => {let _child=std::process::Command::new(std::env::current_exe().unwrap()).arg("child").spawn().unwrap();std::thread::sleep(Duration::from_secs(10));},
+ "parent" => {let _child=std::process::Command::new(std::env::current_exe().unwrap()).arg("child").spawn().unwrap();std::fs::write("ready.txt","ready").unwrap();std::thread::sleep(Duration::from_secs(10));},
  "exit" => std::process::exit(17),
  "file" => {std::fs::copy(&args[2], &args[3]).unwrap();},
  _ => panic!()
@@ -219,7 +219,20 @@ fn interrupted_capture_keeps_partial_evidence() {
         .stdout(std::process::Stdio::piped())
         .spawn()
         .unwrap();
-    std::thread::sleep(Duration::from_millis(200));
+    // Signal only after capture has installed its handler and started the target
+    // and descendant. A fixed delay races preflight on busy CI machines.
+    let ready = Instant::now();
+    while !f.0.join("ready.txt").exists() {
+        assert!(
+            ready.elapsed() < Duration::from_secs(5),
+            "target never became ready"
+        );
+        assert!(
+            child.try_wait().unwrap().is_none(),
+            "capture exited before target readiness"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
     assert!(
         Command::new("kill")
             .args(["-TERM", &child.id().to_string()])
