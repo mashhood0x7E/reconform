@@ -118,6 +118,7 @@ pub fn evaluate(bundle: &Bundle, plan: &ContractPlan) -> (Verdict, Vec<Finding>)
             verdict,
         });
         findings.push(Finding {
+            measurements: None,
             id: c.id.clone(),
             checkpoint: c.checkpoint.clone(),
             channel: c.channel.clone(),

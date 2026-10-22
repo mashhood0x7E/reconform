@@ -21,5 +21,16 @@ Assert-Schema $errorReport report
 $invalid = Get-Content (Join-Path $fixtures 'plan.json') -Raw | ConvertFrom-Json -AsHashtable
 $invalid.checks[0].policy.typo = $true
 if (Test-Json -Json ($invalid | ConvertTo-Json -Depth 20) -SchemaFile (Join-Path $root 'docs/schemas/plan.schema.json') -ErrorAction SilentlyContinue) {throw 'Schema accepted an unknown policy field'}
-Write-Output 'Bundle, plan, contract, report and error schemas verified.'
+$nativeRoot = Join-Path $root ('target/schema-capture-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $nativeRoot | Out-Null
+$manifest = @{schema_version='1.0';scenario='schema';subject='cli';steps=@(@{checkpoint='version';executable=$exe;args=@('version');cwd=$nativeRoot;env=@{};stdin='';timeout_ms=5000;max_output_bytes=4096})} | ConvertTo-Json -Depth 20
+Assert-Schema $manifest capture
+$manifestPath = Join-Path $nativeRoot 'capture.json'
+[System.IO.File]::WriteAllText($manifestPath, $manifest)
+$bundlePath = Join-Path $nativeRoot 'bundle.json'
+$capture = (& $exe capture $manifestPath --allow-exec (Join-Path $root 'target') --output $bundlePath --format json) -join "`n"
+if ($LASTEXITCODE -ne 0) {throw "Schema capture failed: $capture"}
+Assert-Schema (Get-Content $bundlePath -Raw) bundle
+Assert-Schema '{"schema_version":"1.0","tolerance":0,"max_mismatch_fraction":0,"region":null,"assume_srgb":false}' png-policy
+Write-Output 'Bundle, plan, contract, report, error, capture and PNG policy schemas verified.'
 exit 0

@@ -1,6 +1,9 @@
+mod capture;
 mod compare;
 mod contracts;
 mod model;
+#[cfg(feature = "png")]
+mod visual;
 
 use compare::Finding;
 use contracts::ContractPlan;
@@ -14,7 +17,7 @@ use std::{
     process::ExitCode,
 };
 
-const HELP: &str = "Reconform: compare recorded observations (experimental)\n\n  reconform compare LEFT RIGHT --plan PLAN [--format human|json] [--output FILE]\n  reconform check BUNDLE --plan CONTRACTS [--format human|json] [--output FILE]\n  reconform validate FILE --kind bundle|plan|contracts [--format human|json]\n  reconform version\n\nInputs: schema 1.0 UTF-8 JSON, at most 8 MiB each. No target is executed.\nOutput files must not already exist. Exit: 0 pass, 1 mismatch, 2 invalid input,\n3 I/O error, 4 inconclusive/unsupported. See docs/recorded-format.md.\n";
+const HELP: &str = "Reconform: capture and compare observations\n\n  reconform compare LEFT RIGHT --plan PLAN [--format human|json] [--output FILE]\n  reconform check BUNDLE --plan CONTRACTS [--format human|json] [--output FILE]\n  reconform plan MANIFEST [--format human|json]\n  reconform capture MANIFEST --allow-exec ROOT --output BUNDLE [--format human|json]\n  reconform compare-png LEFT RIGHT --plan POLICY [--format human|json] (requires png feature)\n  reconform validate FILE --kind bundle|plan|contracts [--format human|json]\n  reconform version\n\nJSON inputs: schema 1.0 UTF-8, at most 8 MiB each. Only capture executes targets.\nCapture runs with your privileges; process cleanup is not a sandbox.\nOutput files must not already exist. Exit: 0 pass/captured, 1 mismatch,\n2 invalid input, 3 I/O error, 4 inconclusive/unsupported. See docs/.\n";
 
 #[derive(Debug)]
 struct Error {
@@ -73,6 +76,18 @@ fn digest(bytes: &[u8]) -> String {
 }
 
 fn read<T: DeserializeOwned>(path: &str) -> Result<(T, InputIdentity), Error> {
+    let (bytes, identity) = read_bytes(path, MAX_BYTES)?;
+    let value = serde_json::from_slice(&bytes).map_err(|e| {
+        Error::config(format!(
+            "invalid JSON/schema at line {}, column {}",
+            e.line(),
+            e.column()
+        ))
+    })?;
+    Ok((value, identity))
+}
+
+fn read_bytes(path: &str, limit: u64) -> Result<(Vec<u8>, InputIdentity), Error> {
     let absolute = fs::canonicalize(path).map_err(Error::io)?;
     if !fs::metadata(&absolute).map_err(Error::io)?.is_file() {
         return Err(Error::config("input must be a regular file"));
@@ -90,31 +105,22 @@ fn read<T: DeserializeOwned>(path: &str) -> Result<(T, InputIdentity), Error> {
         return Err(Error::config("input must be a regular file"));
     }
     let mut bytes = Vec::new();
-    file.take(MAX_BYTES + 1)
+    file.take(limit + 1)
         .read_to_end(&mut bytes)
         .map_err(Error::io)?;
-    if bytes.len() as u64 > MAX_BYTES {
-        return Err(Error::config("input exceeds 8 MiB"));
+    if bytes.len() as u64 > limit {
+        return Err(Error::config("input exceeds byte limit"));
     }
     // Avoid reflecting untrusted payloads or credentials in parser diagnostics.
-    let value = serde_json::from_slice(&bytes).map_err(|e| {
-        Error::config(format!(
-            "invalid JSON/schema at line {}, column {}",
-            e.line(),
-            e.column()
-        ))
-    })?;
     let path = absolute
         .to_str()
         .ok_or_else(|| Error::config("input path must be UTF-8 for reproduction"))?
         .to_owned();
-    Ok((
-        value,
-        InputIdentity {
-            path,
-            digest: digest(&bytes),
-        },
-    ))
+    let identity = InputIdentity {
+        path,
+        digest: digest(&bytes),
+    };
+    Ok((bytes, identity))
 }
 
 struct Options {
@@ -123,6 +129,8 @@ struct Options {
     kind: Option<String>,
     output: Option<String>,
     json: bool,
+    allow_exec: Option<String>,
+    diff: Option<String>,
 }
 fn options(args: &[String]) -> Result<Options, Error> {
     let mut result = Options {
@@ -131,6 +139,8 @@ fn options(args: &[String]) -> Result<Options, Error> {
         kind: None,
         output: None,
         json: false,
+        allow_exec: None,
+        diff: None,
     };
     let mut seen = std::collections::BTreeSet::new();
     let mut i = 0;
@@ -148,6 +158,8 @@ fn options(args: &[String]) -> Result<Options, Error> {
                 "--plan" => result.plan = Some(value.clone()),
                 "--kind" => result.kind = Some(value.clone()),
                 "--output" => result.output = Some(value.clone()),
+                "--allow-exec" => result.allow_exec = Some(value.clone()),
+                "--diff" => result.diff = Some(value.clone()),
                 "--format" => match value.as_str() {
                     "json" => result.json = true,
                     "human" => (),
@@ -241,7 +253,17 @@ fn execute(args: &[String]) -> Result<u8, Error> {
         return Ok(0);
     }
     let opts = options(&args[1..])?;
+    if opts.diff.is_some() && command != "compare-png" {
+        return Err(Error::config("--diff is only valid for compare-png"));
+    }
+    if opts.allow_exec.is_some() && command != "capture" {
+        return Err(Error::config("--allow-exec is only valid for capture"));
+    }
     match command.as_str() {
+        "capture" => capture::execute(&opts, false),
+        "plan" => capture::execute(&opts, true),
+        #[cfg(feature = "png")]
+        "compare-png" => visual::execute(&opts),
         "validate" => {
             if opts.positional.len() != 1 || opts.plan.is_some() || opts.output.is_some() {
                 return Err(Error::config(

@@ -17,7 +17,8 @@
         "id":{"$ref":"#/$defs/id"},"checkpoint":{"$ref":"#/$defs/id"},"channel":{"$ref":"#/$defs/id"},
         "occurrence":{"type":"integer","minimum":0,"maximum":4294967295},"required":{"type":"boolean"},
         "verdict":{"enum":["pass","fail","inconclusive","unsupported","error"]},
-        "code":{"enum":["ENVIRONMENT_MISMATCH","OBSERVATION_MISSING","OBSERVATION_PARTIAL","KIND_MISMATCH","POLICY_UNSUPPORTED","COMPARE_EQUAL","COMPARE_DIFFERENT","COMPARE_ERROR","CONTRACT_SATISFIED","CONTRACT_VIOLATED","CONTRACT_UNSUPPORTED","CONTRACT_ERROR"]},
+        "code":{"enum":["ENVIRONMENT_MISMATCH","OBSERVATION_MISSING","OBSERVATION_PARTIAL","KIND_MISMATCH","POLICY_UNSUPPORTED","COMPARE_EQUAL","COMPARE_DIFFERENT","COMPARE_ERROR","CONTRACT_SATISFIED","CONTRACT_VIOLATED","CONTRACT_UNSUPPORTED","CONTRACT_ERROR","PNG_DECODE_ERROR","PNG_REGION_INVALID","DIMENSION_MISMATCH","PIXEL_COMPARISON"]},
+        "measurements":{"type":"object","additionalProperties":false,"required":["compared_pixels","mismatched_pixels","mismatch_fraction","max_channel_error","mean_channel_error","bounds"],"properties":{"compared_pixels":{"type":"integer","minimum":1},"mismatched_pixels":{"type":"integer","minimum":0},"mismatch_fraction":{"type":"number","minimum":0,"maximum":1},"max_channel_error":{"type":"integer","minimum":0,"maximum":255},"mean_channel_error":{"type":"number","minimum":0,"maximum":255},"bounds":{"type":["array","null"],"minItems":4,"maxItems":4,"items":{"type":"integer","minimum":0}}}},
         "location":{"oneOf":[{"type":"null"},{"type":"object","additionalProperties":false,"required":["kind","index"],"properties":{"kind":{"enum":["byte","event"]},"index":{"type":"integer","minimum":0}}}]}
       }
     },

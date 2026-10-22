@@ -20,7 +20,7 @@ and decoding were excluded; no decoder is used. The source is
 This is a smoke measurement without warmup or controlled machine load. Allocation
 counts and peak memory were not measured. No NFR throughput qualification is claimed.
 
-The CLI has three direct third-party dependencies: serde, serde_json and BLAKE3.
+The original offline CLI used serde, serde_json and BLAKE3.
 Serde/serde_json supply the JSON parser and typed wire format; std has no JSON codec.
 BLAKE3 supplies reproducible cryptographic input identities; std hashes are unsuitable.
 BLAKE3's pure Rust feature disables native assembly use, although its build dependency
@@ -47,3 +47,23 @@ Core and RenderParity remain dependency-free. The supported minimum toolchain is
 A separate CSV ledger pilot exercised 18 comparisons, 9 contract runs and 18 identical
 reruns. Results and limitations are in [pilot.md](pilot.md). Its test project remains
 outside this repository.
+
+On 22 October 2026 the CLI added process-wrap for Windows Job Objects and Unix
+process groups, ctrlc for cancellation, platform Windows bindings for hidden
+process creation, and optional png for decoding/encoding. These avoid maintaining
+custom OS lifecycle and image codec implementations. They are confined to the
+CLI; both independent library dependency graphs remain unchanged. PNG can be
+omitted at build time. The process dependencies can be removed with the capture
+module without changing either library's API.
+
+The all-feature, all-platform resolved metadata contains 54 registry packages.
+An OSV batch query for those exact versions returned zero advisory matches on
+22 October 2026. Declared licenses are permissive MIT/Apache alternatives, Zlib,
+and Unicode-3.0 obligations; this remains a database/license-metadata review,
+not a source security audit. Cargo.lock records the complete versions.
+
+The external ledger pilot was rerun through native capture: 27 captures,
+18 comparisons (four deliberate failures), and 18 byte-identical report reruns.
+All matched the earlier independent capture harness results. Process integration
+tests additionally exercise literal arguments, deadlines, output flooding,
+nonzero exit, fresh-file checks, traversal rejection and descendant termination.

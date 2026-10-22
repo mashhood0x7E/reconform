@@ -4,10 +4,12 @@ Compare recorded observations from a reference and candidate implementation.
 Reconform reports which checks differ, which could not be verified, and how to
 repeat the comparison. Neither application needs to depend on Reconform.
 
-This is the unreleased 0.1.0 release candidate. The CLI supports offline
+This is unreleased work toward 0.1.0. The CLI supports offline
 text, bytes, finite numbers, ordered string events, and exit-code comparisons.
-`renderparity` separately compares borrowed RGBA8 frames. Process execution,
-PNG decoding and baseline management are not available. Candidate-only recorded contracts check presence, nonempty values, scalar bounds
+`renderparity` separately compares borrowed RGBA8 frames. The CLI also provides
+[bounded executable capture](docs/process-capture.md) and opt-in
+[PNG comparisons](docs/png-comparison.md), including captured image observations.
+Candidate-only recorded contracts check presence, nonempty values, scalar bounds
 and successful exit. See [release scope and compatibility](docs/compatibility.md).
 
 ## Try it
@@ -23,6 +25,8 @@ The example intentionally differs at byte 0 and exits with status **1**. Compare
 
 ```powershell
 cargo install --path crates/reconform-cli --locked
+# Include PNG decoding:
+cargo install --path crates/reconform-cli --features png --locked
 ```
 
 The JSON report includes each check's result, the first comparable mismatch,
@@ -39,7 +43,7 @@ The [example](crates/reconform-cli/examples/recorded/README.md) includes two sta
 | --- | --- |
 | [reconform-core](crates/reconform-core) | Byte/numeric comparisons and explicit verdict aggregation |
 | [renderparity](crates/renderparity) | Borrowed RGBA8 comparison, tolerance, rectangular regions and mismatch bounds |
-| [reconform-cli](crates/reconform-cli) | JSON input, bounded file reads and offline reports |
+| [reconform-cli](crates/reconform-cli) | Executable capture, recorded comparisons, opt-in PNG decoding and reports |
 
 Both libraries have zero third-party dependencies and perform no I/O. JSON parsing
 and BLAKE3 hashing belong to the CLI. Independent consumer examples live under

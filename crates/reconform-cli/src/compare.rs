@@ -13,6 +13,8 @@ pub struct Finding {
     pub verdict: String,
     pub code: String,
     pub location: Option<Location>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub measurements: Option<serde_json::Value>,
 }
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(
@@ -39,7 +41,14 @@ pub fn evaluate(left: &Bundle, right: &Bundle, plan: &Plan) -> (Verdict, Vec<Fin
     let mut gate = Vec::new();
     let mut findings = Vec::new();
     for check in checks {
-        let (verdict, code, location) = compare(left, right, check, plan.strict_environment);
+        let mut measurements = None;
+        let (verdict, code, location) = compare(
+            left,
+            right,
+            check,
+            plan.strict_environment,
+            &mut measurements,
+        );
         gate.push(Check {
             required: check.required,
             verdict,
@@ -53,6 +62,7 @@ pub fn evaluate(left: &Bundle, right: &Bundle, plan: &Plan) -> (Verdict, Vec<Fin
             verdict: verdict.as_str().into(),
             code: code.into(),
             location,
+            measurements,
         });
     }
     (aggregate(gate), findings)
@@ -63,6 +73,7 @@ fn compare(
     right: &Bundle,
     check: &CheckSpec,
     strict: bool,
+    _measurements: &mut Option<serde_json::Value>,
 ) -> (Verdict, &'static str, Option<Location>) {
     if strict && (left.environment.is_none() || left.environment != right.environment) {
         return (Verdict::Inconclusive, "ENVIRONMENT_MISMATCH", None);
@@ -77,6 +88,28 @@ fn compare(
         return (Verdict::Inconclusive, "KIND_MISMATCH", None);
     }
     let (verdict, location) = match (&a.payload, &b.payload, &check.policy) {
+        #[cfg(feature = "png")]
+        (
+            Payload::Bytes(a),
+            Payload::Bytes(b),
+            Policy::Png {
+                tolerance,
+                max_mismatch_fraction,
+                region,
+                assume_srgb,
+            },
+        ) => {
+            let (verdict, code, metrics) = crate::visual::compare_encoded(
+                a,
+                b,
+                *tolerance,
+                *max_mismatch_fraction,
+                *region,
+                *assume_srgb,
+            );
+            *_measurements = metrics;
+            return (verdict, code, None);
+        }
         (Payload::Text(a), Payload::Text(b), Policy::Exact {}) => (
             compare_bytes(a.as_bytes(), b.as_bytes()),
             first_difference(a.as_bytes(), b.as_bytes()).map(Location::Byte),
@@ -92,6 +125,7 @@ fn compare(
             let tolerance = match policy {
                 Policy::Exact {} => 0.0,
                 Policy::Absolute { tolerance } => *tolerance,
+                _ => return (Verdict::Unsupported, "POLICY_UNSUPPORTED", None),
             };
             (
                 compare_numbers(*a, *b, tolerance).unwrap_or(Verdict::Error),

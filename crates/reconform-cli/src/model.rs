@@ -131,7 +131,15 @@ pub struct CheckSpec {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Policy {
     Exact {},
-    Absolute { tolerance: f64 },
+    Absolute {
+        tolerance: f64,
+    },
+    Png {
+        tolerance: u8,
+        max_mismatch_fraction: f64,
+        region: Option<[usize; 4]>,
+        assume_srgb: bool,
+    },
 }
 
 pub fn id(value: &str) -> bool {
@@ -210,6 +218,17 @@ impl Plan {
         }
         let mut ids = BTreeSet::new();
         for c in &self.checks {
+            if let Policy::Png {
+                max_mismatch_fraction,
+                region,
+                ..
+            } = &c.policy
+                && (!max_mismatch_fraction.is_finite()
+                    || !(0.0..=1.0).contains(max_mismatch_fraction)
+                    || region.is_some_and(|[x, y, r, b]| x >= r || y >= b))
+            {
+                return Err("invalid PNG mismatch fraction or region");
+            }
             if !id(&c.id) || !id(&c.checkpoint) || !id(&c.channel) || !ids.insert(&c.id) {
                 return Err("invalid or duplicate check identifier");
             }

@@ -1,15 +1,15 @@
 # Compatibility and release scope
 
-The initial 0.1.0 release candidate supports offline recorded-evidence comparison,
-candidate-only recorded contracts, and standalone in-memory RGBA8 comparison.
-It does not execute applications or decode images. This scope is deliberately smaller
-than the longer-term Reconform product architecture.
+The unreleased 0.1.0 implementation supports recorded-evidence comparison,
+candidate-only contracts, bounded native executable capture and PNG comparisons,
+alongside standalone in-memory RGBA8 comparison. Publication remains on hold
+while the expanded workflow completes qualification.
 
 ## Rust APIs
 
 Minimum Rust version: 1.90. Edition: 2024. Windows MSVC and Linux are tested in CI.
 Both comparison libraries use safe Rust and have no third-party dependencies under
-default features. There are no optional features in this release.
+default features. The CLI's optional `png` feature enables its codec boundary.
 
 Patch releases in the 0.1 series should preserve public signatures, verdict semantics,
 accepted valid inputs and default policy behavior. A breaking Rust API change requires
@@ -21,7 +21,8 @@ accepted malformed inputs, with a changelog entry and regression test.
 
 Bundles, comparison plans, contract plans and reports use schema 1.0. Unknown versions
 or unknown input fields are rejected. A report consumer should check both schema_version
-and method; the supported methods are recorded-parity/1 and recorded-contracts/1.
+and method; verification methods include recorded-parity/1, recorded-contracts/1
+and png-parity/1. Capture and preflight use process-capture/1 and process-plan/1.
 Comparison algorithms and normalization defaults cannot silently change in a patch.
 
 CLI exit codes 0..4 are documented in recorded-format.md. Human wording may improve;
@@ -30,8 +31,7 @@ Rerun recipes preserve argument boundaries and include content digests for verif
 
 ## Not part of 0.1
 
-Process capture and lifecycle control, persistent content-addressed artifact storage,
-PNG/diff-image CLI integration, semantic JSON observations, baseline promotion,
+Persistent content-addressed artifact storage, semantic JSON observations, baseline promotion,
 frame timelines, game adapters, MCP and reduction remain future work. No command or
 feature flag pretends to implement them. macOS and other targets are not qualified.
 

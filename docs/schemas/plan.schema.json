@@ -18,7 +18,8 @@
           "required":{"type":"boolean"},
           "policy":{"oneOf":[
             {"type":"object","additionalProperties":false,"required":["kind"],"properties":{"kind":{"const":"exact"}}},
-            {"type":"object","additionalProperties":false,"required":["kind","tolerance"],"properties":{"kind":{"const":"absolute"},"tolerance":{"type":"number","minimum":0}}}
+            {"type":"object","additionalProperties":false,"required":["kind","tolerance"],"properties":{"kind":{"const":"absolute"},"tolerance":{"type":"number","minimum":0}}},
+            {"type":"object","additionalProperties":false,"required":["kind","tolerance","max_mismatch_fraction","assume_srgb"],"properties":{"kind":{"const":"png"},"tolerance":{"type":"integer","minimum":0,"maximum":255},"max_mismatch_fraction":{"type":"number","minimum":0,"maximum":1},"assume_srgb":{"type":"boolean"},"region":{"type":["array","null"],"minItems":4,"maxItems":4,"items":{"type":"integer","minimum":0}}}}
           ]}
         }
       }

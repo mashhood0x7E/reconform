@@ -1,0 +1,13 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"Reconform PNG policy 1.0",
+  "type":"object","additionalProperties":false,
+  "required":["schema_version","tolerance","max_mismatch_fraction","assume_srgb"],
+  "properties":{
+    "schema_version":{"const":"1.0"},
+    "tolerance":{"type":"integer","minimum":0,"maximum":255},
+    "max_mismatch_fraction":{"type":"number","minimum":0,"maximum":1},
+    "region":{"type":["array","null"],"minItems":4,"maxItems":4,"items":{"type":"integer","minimum":0}},
+    "assume_srgb":{"type":"boolean"}
+  }
+}

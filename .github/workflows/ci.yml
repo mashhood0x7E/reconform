@@ -18,6 +18,8 @@ jobs:
       - run: cargo check --workspace --locked
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
+      - run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+      - run: cargo test --workspace --all-features --locked
       - name: Validate wire schemas independently
         if: runner.os == 'Windows'
         shell: pwsh
