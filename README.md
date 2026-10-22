@@ -4,10 +4,11 @@ Compare recorded observations from a reference and candidate implementation.
 Reconform reports which checks differ, which could not be verified, and how to
 repeat the comparison. Neither application needs to depend on Reconform.
 
-This is an unreleased, experimental implementation. The CLI supports offline
+This is the unreleased 0.1.0 release candidate. The CLI supports offline
 text, bytes, finite numbers, ordered string events, and exit-code comparisons.
 `renderparity` separately compares borrowed RGBA8 frames. Process execution,
-PNG decoding and baseline management are not available. Candidate-only recorded contracts check presence, nonempty values, scalar bounds and successful exit.
+PNG decoding and baseline management are not available. Candidate-only recorded contracts check presence, nonempty values, scalar bounds
+and successful exit. See [release scope and compatibility](docs/compatibility.md).
 
 ## Try it
 

@@ -22,3 +22,4 @@ $invalid = Get-Content (Join-Path $fixtures 'plan.json') -Raw | ConvertFrom-Json
 $invalid.checks[0].policy.typo = $true
 if (Test-Json -Json ($invalid | ConvertTo-Json -Depth 20) -SchemaFile (Join-Path $root 'docs/schemas/plan.schema.json') -ErrorAction SilentlyContinue) {throw 'Schema accepted an unknown policy field'}
 Write-Output 'Bundle, plan, contract, report and error schemas verified.'
+exit 0
